@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api/client';
-import { Lock, User, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, User, ArrowRight, ShieldCheck, AlertCircle, Download } from 'lucide-react';
 
 interface LoginProps {
   onSuccess: (role: string) => void;
@@ -119,8 +119,18 @@ export const Login: React.FC<LoginProps> = ({ onSuccess, onBackToCalculator }) =
           </button>
         </form>
 
-        {/* Back to Decoy Button */}
-        <div className="mt-6 pt-4 border-t border-zinc-800/80 text-center">
+        {/* Options & Download */}
+        <div className="mt-5 pt-4 border-t border-zinc-800/80 flex flex-col items-center gap-2.5">
+          <a
+            href="https://github.com/akshaytheduvil/secret-calculator/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 active:scale-[0.98] border border-zinc-700/60 text-xs font-semibold text-emerald-400 flex items-center justify-center gap-2 transition-all shadow-sm"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Download Android APK</span>
+          </a>
+
           <button
             type="button"
             onClick={onBackToCalculator}

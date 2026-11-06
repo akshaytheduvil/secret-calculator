@@ -1,3 +1,5 @@
+import { MockFallback } from './mockFallback';
+
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export class ApiClient {
@@ -25,18 +27,30 @@ export class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers
+      });
 
-    const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      if (response.ok && contentType.includes('application/json')) {
+        return await response.json();
+      }
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
+      if (!response.ok && contentType.includes('application/json')) {
+        const data = await response.json();
+        throw new Error(data.error || 'Request failed');
+      }
+
+      // If response is HTML or server is absent (e.g. GitHub Pages static host), fallback to MockFallback
+      return await MockFallback.handle(endpoint, options, headers);
+    } catch (err: any) {
+      if (err.message && !err.message.includes('JSON') && !err.message.includes('fetch') && !err.message.includes('NetworkError')) {
+        throw err;
+      }
+      return await MockFallback.handle(endpoint, options, headers);
     }
-
-    return data as T;
   }
 
   // Auth

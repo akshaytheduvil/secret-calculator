@@ -13,7 +13,8 @@ import {
   DollarSign,
   Users,
   Grid,
-  ChevronRight
+  ChevronRight,
+  Download
 } from 'lucide-react';
 
 export type ActiveTab =
@@ -202,8 +203,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </nav>
         </div>
 
-        {/* Drawer Footer with immediate logout */}
-        <div className="p-4 border-t border-zinc-800 bg-[#12141a]">
+        {/* Drawer Footer with immediate logout & download */}
+        <div className="p-4 border-t border-zinc-800 bg-[#12141a] flex flex-col gap-2">
+          <a
+            href="https://github.com/akshaytheduvil/secret-calculator/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 px-4 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-zinc-700/60"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Android APK</span>
+          </a>
+
           <button
             onClick={() => {
               setDrawerOpen(false);
