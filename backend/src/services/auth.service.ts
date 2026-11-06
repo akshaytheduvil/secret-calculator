@@ -17,16 +17,56 @@ export class AuthService {
       console.log('[Auth] Default prize configuration created.');
     }
 
-    // 2. Initialize development test account 'test' / 'test' (SUBDEALER)
-    const testUserCheck = await db.query(`SELECT id FROM users WHERE username = 'test'`);
+    // 2. Initialize default Admin A account if not exists
+    let adminId: string | null = null;
+    const adminCheck = await db.query(`SELECT id FROM users WHERE username = 'admin'`);
+    if (adminCheck.rows.length === 0) {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash('admin123', salt);
+      const adminRes = await db.query(
+        `INSERT INTO users (username, password_hash, role, is_active)
+         VALUES ($1, $2, 'ADMIN', true) RETURNING id`,
+        ['admin', hash]
+      );
+      adminId = adminRes.rows[0].id;
+      console.log('[Auth] Default Admin A account "admin" initialized.');
+    } else {
+      adminId = adminCheck.rows[0].id;
+    }
+
+    // 3. Initialize default Agent B account if not exists
+    let agentId: string | null = null;
+    const agentCheck = await db.query(`SELECT id FROM users WHERE username = 'agent'`);
+    if (agentCheck.rows.length === 0) {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash('agent123', salt);
+      const agentRes = await db.query(
+        `INSERT INTO users (username, password_hash, role, parent_id, is_active)
+         VALUES ($1, $2, 'AGENT', $3, true) RETURNING id`,
+        ['agent', hash, adminId]
+      );
+      agentId = agentRes.rows[0].id;
+
+      await db.query(
+        `INSERT INTO dealer_configs (user_id, sales_commission, winning_commission_dc, daily_sale_limit)
+         VALUES ($1, 0.50, 0, 500000)`,
+        [agentId]
+      );
+      console.log('[Auth] Default Agent B account "agent" initialized.');
+    } else {
+      agentId = agentCheck.rows[0].id;
+    }
+
+    // 4. Initialize development test account 'test' / 'test' (SUBDEALER under Agent B)
+    const testUserCheck = await db.query(`SELECT id, parent_id FROM users WHERE username = 'test'`);
     if (testUserCheck.rows.length === 0) {
       const salt = await bcrypt.genSalt(10);
       const hash = await bcrypt.hash('test', salt);
 
       const userRes = await db.query(
-        `INSERT INTO users (username, password_hash, role, is_active)
-         VALUES ($1, $2, $3, true) RETURNING id`,
-        ['test', hash, 'SUBDEALER']
+        `INSERT INTO users (username, password_hash, role, parent_id, is_active)
+         VALUES ($1, $2, 'SUBDEALER', $3, true) RETURNING id`,
+        ['test', hash, agentId]
       );
 
       const testUserId = userRes.rows[0].id;
@@ -60,19 +100,8 @@ export class AuthService {
       );
 
       console.log('[Auth] Development test account "test" created with empty clean ledger.');
-    }
-
-    // 3. Initialize default Admin A account if not exists
-    const adminCheck = await db.query(`SELECT id FROM users WHERE username = 'admin'`);
-    if (adminCheck.rows.length === 0) {
-      const salt = await bcrypt.genSalt(10);
-      const hash = await bcrypt.hash('admin123', salt);
-      await db.query(
-        `INSERT INTO users (username, password_hash, role, is_active)
-         VALUES ($1, $2, 'ADMIN', true)`,
-        ['admin', hash]
-      );
-      console.log('[Auth] Default Admin A account "admin" initialized.');
+    } else if (!testUserCheck.rows[0].parent_id && agentId) {
+      await db.query(`UPDATE users SET parent_id = $1 WHERE id = $2`, [agentId, testUserCheck.rows[0].id]);
     }
   }
 
