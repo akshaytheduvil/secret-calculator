@@ -7,7 +7,9 @@ build/
 *.log
 .DS_Store
 .capacitor/
-android/
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/build/
 backend/data/
 data/
 
