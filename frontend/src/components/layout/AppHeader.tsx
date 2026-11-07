@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export type ActiveTab =
+  | 'menu'
   | 'booking'
   | 'lastSale'
   | 'salesReport'

@@ -2,21 +2,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api/client';
-import { Trophy, Search } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
-export const WinningReport: React.FC = () => {
-  const { selectedGame } = useGame();
+interface WinningReportProps {
+  onBack?: () => void;
+}
+
+export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
+  const { selectedGame, gameMeta } = useGame();
   const { user } = useAuth();
 
+  // View state: 'filter' | 'report'
+  const [viewState, setViewState] = useState<'filter' | 'report'>('filter');
+
+  // Filters
   const [fromDate, setFromDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [lsk, setLsk] = useState('ALL');
-  const [allGame, setAllGame] = useState(false);
+  const [allGame, setAllGame] = useState(true);
   const [selectedDealerId, setSelectedDealerId] = useState('');
   const [subDealers, setSubDealers] = useState<any[]>([]);
 
+  // Data
   const [records, setRecords] = useState<any[]>([]);
-  const [summary, setSummary] = useState<{ totalPrize: number; totalDC: number }>({ totalPrize: 0, totalDC: 0 });
+  const [summary, setSummary] = useState<{ totalPrize: number; totalDC: number }>({
+    totalPrize: 0,
+    totalDC: 0
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,6 +52,7 @@ export const WinningReport: React.FC = () => {
       });
       setRecords(res.records || []);
       setSummary(res.summary || { totalPrize: 0, totalDC: 0 });
+      setViewState('report');
     } catch {
       setRecords([]);
       setSummary({ totalPrize: 0, totalDC: 0 });
@@ -48,169 +61,183 @@ export const WinningReport: React.FC = () => {
     }
   }, [fromDate, toDate, lsk, allGame, selectedGame, selectedDealerId]);
 
-  useEffect(() => {
-    fetchWinningReport();
-  }, [fetchWinningReport]);
+  const handleBack = () => {
+    if (viewState === 'report') {
+      setViewState('filter');
+    } else if (onBack) {
+      onBack();
+    }
+  };
 
-  const lskOptions = [
-    'ALL',
-    'LSK A',
-    'LSK B',
-    'LSK C',
-    'LSK AB',
-    'LSK BC',
-    'LSK AC',
-    'LSK SUPER',
-    'LSK BOX'
-  ];
+  const lskOptions = ['ALL', 'SUPER', 'BOX', 'AB', 'BC', 'AC', 'A', 'B', 'C'];
+  const themeBg = gameMeta.themeColor;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
-      <div className="pb-3 border-b border-zinc-800">
-        <h2 className="text-xl font-black text-white flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-400" />
-          <span>Winning Report</span>
-        </h2>
-        <p className="text-xs text-zinc-400 mt-0.5">Automated winning claims and dealer commissions (DC)</p>
-      </div>
+    <div className="min-h-screen bg-white flex flex-col justify-between max-w-md mx-auto">
+      {/* Header matching PDF 2 Page 4/5 */}
+      <header
+        className="px-4 py-3 text-white flex items-center justify-between sticky top-0 z-20 shadow-sm"
+        style={{ backgroundColor: themeBg }}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleBack}
+            className="p-1 text-white hover:opacity-80 active:opacity-60 transition-opacity"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span className="font-bold text-base tracking-wide">Winning Report</span>
+        </div>
+      </header>
 
-      {/* Filter Bar */}
-      <div className="bg-[#161820] border border-zinc-800 rounded-3xl p-5 shadow-xl space-y-4 text-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-zinc-400 font-semibold mb-1 uppercase tracking-wider">From Date</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="w-full bg-[#1e2029] border border-zinc-700/80 rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
+      {/* State A: Filter View (PDF 2 Page 4 Bottom) */}
+      {viewState === 'filter' && (
+        <main className="p-4 flex-1 flex flex-col justify-between">
+          <div className="space-y-4">
+            {/* FROM & TO */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                  FROM
+                </label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-2 text-xs text-gray-800 bg-white focus:outline-none focus:border-black"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                  TO
+                </label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-2 text-xs text-gray-800 bg-white focus:outline-none focus:border-black"
+                />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-zinc-400 font-semibold mb-1 uppercase tracking-wider">To Date</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="w-full bg-[#1e2029] border border-zinc-700/80 rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-zinc-400 font-semibold mb-1 uppercase tracking-wider">LSK</label>
-            <select
-              value={lsk}
-              onChange={(e) => setLsk(e.target.value)}
-              className="w-full bg-[#1e2029] border border-zinc-700/80 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {lskOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-
-          {(user?.role === 'AGENT' || user?.role === 'ADMIN') && (
+            {/* LSK */}
             <div>
-              <label className="block text-zinc-400 font-semibold mb-1 uppercase tracking-wider">Dealer</label>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                LSK
+              </label>
               <select
-                value={selectedDealerId}
-                onChange={(e) => setSelectedDealerId(e.target.value)}
-                className="w-full bg-[#1e2029] border border-zinc-700/80 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                value={lsk}
+                onChange={(e) => setLsk(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2.5 py-2 text-xs text-gray-800 bg-white focus:outline-none focus:border-black"
               >
-                <option value="">All Dealers</option>
-                {subDealers.map((d) => (
-                  <option key={d.id} value={d.id}>{d.username}</option>
+                {lskOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allGame}
-              onChange={(e) => setAllGame(e.target.checked)}
-              className="w-4 h-4 rounded text-emerald-500 bg-zinc-900 border-zinc-600 focus:ring-emerald-500"
-            />
-            <span className="text-zinc-300 font-medium">All Game</span>
-          </label>
+            {/* Sub-dealer / Game Dropdown */}
+            <div>
+              <select
+                value={selectedDealerId}
+                onChange={(e) => setSelectedDealerId(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2.5 py-2 text-xs text-gray-800 bg-white focus:outline-none focus:border-black"
+              >
+                <option value="">All Dealers</option>
+                {subDealers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.username}
+                  </option>
+                ))}
+              </select>
+            </div>
 
+            {/* All Game Checkbox */}
+            <div className="pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={allGame}
+                  onChange={(e) => setAllGame(e.target.checked)}
+                  className="w-4 h-4 text-black rounded border-gray-300 focus:ring-0"
+                />
+                <span>All Game</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Red SHOW REPORT Button */}
           <button
             onClick={fetchWinningReport}
             disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 transition-colors shadow-md disabled:opacity-50"
+            className="w-full py-3 bg-[#ff0000] hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded mt-8 shadow-sm transition-colors disabled:opacity-50"
           >
-            <Search className="w-3.5 h-3.5" />
-            <span>Show Report</span>
+            {loading ? 'LOADING...' : 'SHOW REPORT'}
           </button>
-        </div>
-      </div>
+        </main>
+      )}
 
-      {/* Summary Metrics */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#161820] border border-zinc-800 rounded-2xl p-4 shadow-md">
-          <span className="text-xs text-zinc-400 block uppercase tracking-wider font-semibold">Total Winning Prize</span>
-          <span className="text-xl sm:text-2xl font-mono font-black text-amber-400">₹{summary.totalPrize.toLocaleString()}</span>
-        </div>
-        <div className="bg-[#161820] border border-zinc-800 rounded-2xl p-4 shadow-md">
-          <span className="text-xs text-zinc-400 block uppercase tracking-wider font-semibold">Total Dealer Commission (DC)</span>
-          <span className="text-xl sm:text-2xl font-mono font-black text-emerald-400">₹{summary.totalDC.toLocaleString()}</span>
-        </div>
-      </div>
-
-      {/* Report Table */}
-      {loading ? (
-        <div className="p-12 text-center text-zinc-400">Loading winning claims...</div>
-      ) : records.length === 0 ? (
-        <div className="p-12 text-center bg-[#161820] rounded-3xl border border-zinc-800 text-zinc-500">
-          No winning records found for selected period
-        </div>
-      ) : (
-        <div className="bg-[#161820] border border-zinc-800 rounded-3xl overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#12141a] text-zinc-400 font-mono uppercase border-b border-zinc-800">
-                <tr>
-                  <th className="py-3 px-3">Date</th>
-                  <th className="py-3 px-3">Game</th>
-                  <th className="py-3 px-3">Customer</th>
-                  <th className="py-3 px-3">Winning No.</th>
-                  <th className="py-3 px-3">Category</th>
-                  <th className="py-3 px-3">Count</th>
-                  <th className="py-3 px-3">Dealer</th>
-                  <th className="py-3 px-3">Bill No.</th>
-                  <th className="py-3 px-3 text-right">Prize Amount</th>
-                  <th className="py-3 px-3 text-right">DC</th>
+      {/* State B: Report Table View (PDF 2 Page 5 Top) */}
+      {viewState === 'report' && (
+        <div className="flex-1 flex flex-col justify-between">
+          <main className="flex-1 overflow-x-auto pb-16">
+            <table className="w-full text-center border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-[#e4e6ea] text-gray-700 font-bold border-b border-gray-300 text-[9px]">
+                  <th className="py-1.5 px-1 font-semibold text-left pl-3">DATE</th>
+                  <th className="py-1.5 px-1 font-semibold">GAME</th>
+                  <th className="py-1.5 px-1 font-semibold">NUMBER</th>
+                  <th className="py-1.5 px-1 font-semibold">DEALER</th>
+                  <th className="py-1.5 px-1 font-semibold">PRICE</th>
+                  <th className="py-1.5 px-1 font-semibold">AMOUNT</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60 font-mono">
-                {records.map((r) => (
-                  <tr key={r.id} className="hover:bg-zinc-800/30 text-zinc-300">
-                    <td className="py-2.5 px-3 text-zinc-400">{r.date}</td>
-                    <td className="py-2.5 px-3 font-bold text-white">{r.game}</td>
-                    <td className="py-2.5 px-3 font-sans text-zinc-200">{r.customer_name}</td>
-                    <td className="py-2.5 px-3 font-black text-amber-400 text-sm">{r.winning_number}</td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px]">
-                        {r.lsk_category}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold">{r.count}</td>
-                    <td className="py-2.5 px-3 font-sans text-zinc-400">{r.dealer}</td>
-                    <td className="py-2.5 px-3 text-zinc-400">{r.bill_number}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-400">
-                      ₹{Number(r.winning_prize_amount).toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-bold text-blue-400">
-                      ₹{Number(r.dc).toLocaleString()}
+              <tbody>
+                {records.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-gray-400 text-xs">
+                      No winning records found
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  records.map((rec) => (
+                    <tr key={rec.id} className="border-b border-gray-200 text-gray-800 hover:bg-gray-50">
+                      <td className="py-1.5 px-1 text-left pl-3">
+                        {rec.draw_date || (rec.created_at ? new Date(rec.created_at).toLocaleDateString() : '-')}
+                      </td>
+                      <td className="py-1.5 px-1 font-semibold">{rec.game_code}</td>
+                      <td className="py-1.5 px-1 font-mono font-bold">{rec.winning_number}</td>
+                      <td className="py-1.5 px-1">{rec.customer_name || 'Retail'}</td>
+                      <td className="py-1.5 px-1 font-mono">{rec.prize_name || 'BOARD'}</td>
+                      <td className="py-1.5 px-1 font-mono font-bold">₹ {rec.prize_amount}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </main>
+
+          {/* Bottom Summary Bar matching reference screenshot */}
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#e4e6ea] border-t border-gray-300 py-1.5 px-2 grid grid-cols-4 text-center divide-x divide-gray-300 z-20 text-[10px]">
+            <div>
+              <span className="block text-[8px] font-semibold text-gray-500 uppercase">COUNT</span>
+              <strong className="text-black">{records.length}</strong>
+            </div>
+            <div>
+              <span className="block text-[8px] font-semibold text-gray-500 uppercase">DC</span>
+              <strong className="text-black">{summary.totalDC || 0}</strong>
+            </div>
+            <div>
+              <span className="block text-[8px] font-semibold text-gray-500 uppercase">PRICE</span>
+              <strong className="text-black">₹ {summary.totalPrize || 0}</strong>
+            </div>
+            <div>
+              <span className="block text-[8px] font-semibold text-gray-500 uppercase">TOTAL</span>
+              <strong className="text-black">₹ {summary.totalPrize || 0}</strong>
+            </div>
           </div>
         </div>
       )}

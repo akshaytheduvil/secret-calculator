@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
 import { ApiClient } from '../../api/client';
-import { FileText, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react';
 
-export const LastSale: React.FC = () => {
+interface LastSaleProps {
+  onBack?: () => void;
+}
+
+export const LastSale: React.FC<LastSaleProps> = ({ onBack }) => {
   const { selectedGame, gameMeta } = useGame();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,115 +30,117 @@ export const LastSale: React.FC = () => {
   }, [fetchLastSales]);
 
   const handleCancelBill = async (billId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this booking bill?')) return;
+    if (!window.confirm('Cancel this booking bill?')) return;
     try {
       await ApiClient.cancelBill(billId);
-      setActionMessage('Bill cancelled successfully');
+      setActionMessage('Bill cancelled');
       fetchLastSales();
     } catch (err: any) {
       alert(err.message || 'Failed to cancel bill');
     }
   };
 
+  const themeBg = gameMeta.themeColor;
+
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-5">
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-        <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <FileText className="w-5 h-5" style={{ color: gameMeta.themeColor }} />
-            <span>Last Sale — {selectedGame}</span>
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">Today's active bookings prior to closing</p>
+    <div className="min-h-screen bg-white flex flex-col max-w-md mx-auto">
+      {/* Header matching reference */}
+      <header
+        className="px-4 py-3 text-white flex items-center justify-between sticky top-0 z-20 shadow-sm"
+        style={{ backgroundColor: themeBg }}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-1 text-white hover:opacity-80 active:opacity-60 transition-opacity"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span className="font-bold text-base tracking-wide">Last Sale</span>
         </div>
+
         <button
           onClick={fetchLastSales}
           disabled={loading}
-          className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+          className="p-1 text-white hover:opacity-80 transition-opacity"
           title="Refresh"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
-      </div>
+      </header>
 
       {actionMessage && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs">
+        <div className="p-2 bg-green-50 text-green-700 text-xs text-center border-b border-green-200">
           {actionMessage}
         </div>
       )}
 
-      {records.length === 0 ? (
-        <div className="p-12 text-center bg-[#161820] rounded-3xl border border-zinc-800/80">
-          <FileText className="w-10 h-10 text-zinc-600 mx-auto mb-2" />
-          <p className="text-zinc-400 text-sm font-medium">No sales recorded yet for today's {selectedGame} draw</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {records.map((bill) => (
-            <div
-              key={bill.id}
-              className="bg-[#161820] border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-800 text-xs">
-                <div>
-                  <span className="text-zinc-500 block">Customer</span>
-                  <strong className="text-white text-sm">{bill.customer_name}</strong>
+      {/* Main List */}
+      <main className="flex-1 p-3">
+        {records.length === 0 ? (
+          <div className="py-16 text-center text-gray-400 text-xs">
+            No sales recorded yet for today's {selectedGame} draw
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {records.map((bill) => (
+              <div
+                key={bill.id}
+                className="bg-white border border-gray-200 rounded p-3 text-xs shadow-sm"
+              >
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
+                  <div>
+                    <span className="text-[10px] text-gray-500 block">BILL NO</span>
+                    <strong className="text-black font-mono text-sm">{bill.bill_number}</strong>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-gray-500 block">CUSTOMER</span>
+                    <span className="text-gray-800 font-medium">{bill.customer_name || 'Retail'}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-zinc-500 block">Bill Number</span>
-                  <span className="font-mono font-bold text-amber-400">{bill.bill_number}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-500 block">Total Count</span>
-                  <span className="font-mono font-bold text-white">{bill.total_count}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-500 block">Status</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                    bill.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400'
-                  }`}>
+
+                <div className="flex items-center justify-between text-gray-600 mb-2">
+                  <span>Count: <strong className="text-black">{bill.total_count}</strong></span>
+                  <span>Amount: <strong className="text-black">₹{bill.total_c_amount || (bill.total_count * 10)}</strong></span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      bill.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
                     {bill.status}
                   </span>
                 </div>
+
+                {bill.items && bill.items.length > 0 && (
+                  <div className="bg-gray-50 p-2 rounded text-[11px] font-mono divide-y divide-gray-200">
+                    {bill.items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between py-1">
+                        <span>{item.lsk_category} - {item.booked_number}</span>
+                        <span>x {item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {bill.status === 'ACTIVE' && (
-                  <button
-                    onClick={() => handleCancelBill(bill.id)}
-                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white text-xs font-semibold flex items-center gap-1 transition-colors"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    <span>Cancel</span>
-                  </button>
+                  <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end">
+                    <button
+                      onClick={() => handleCancelBill(bill.id)}
+                      className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 )}
               </div>
-
-              {/* Items Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="text-zinc-500 border-b border-zinc-800/60 pb-1">
-                      <th className="py-1">Booked Numbers</th>
-                      <th className="py-1">LSK Category</th>
-                      <th className="py-1 text-right">Count</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/40">
-                    {bill.items?.map((item: any, idx: number) => (
-                      <tr key={idx} className="text-zinc-300">
-                        <td className="py-1.5 font-mono font-bold text-white text-sm">{item.bookedNumber}</td>
-                        <td className="py-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[11px]">
-                            {item.lskCategory}
-                          </span>
-                        </td>
-                        <td className="py-1.5 text-right font-mono font-semibold">{item.count}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 };

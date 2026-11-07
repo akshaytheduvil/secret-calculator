@@ -277,8 +277,12 @@ export const Calculator: React.FC<CalculatorProps> = ({ onUnlock }) => {
       <div className="w-full max-w-sm sm:max-w-md h-screen sm:h-auto sm:min-h-[640px] bg-[#14161d] sm:rounded-3xl shadow-2xl flex flex-col justify-between border border-zinc-800/80 p-5 sm:p-6 overflow-hidden">
         
         {/* Top Header / App Brand */}
-        <div className="flex items-center justify-between pb-2 pt-1 border-b border-zinc-800/40">
-          <span className="text-xs font-medium tracking-widest text-zinc-400 uppercase">Calculator</span>
+        <div
+          onClick={onUnlock}
+          className="flex items-center justify-between pb-2 pt-1 border-b border-zinc-800/40 cursor-pointer group"
+          title="Click to unlock or enter 11+22="
+        >
+          <span className="text-xs font-medium tracking-widest text-zinc-400 group-hover:text-zinc-200 uppercase transition-colors">Calculator</span>
           <span className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse"></span>
         </div>
 
