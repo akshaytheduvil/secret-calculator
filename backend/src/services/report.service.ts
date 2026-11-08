@@ -45,6 +45,13 @@ export interface CommissionReportFilter {
   userRole: 'ADMIN' | 'AGENT' | 'SUBDEALER';
 }
 
+export interface TodayReportFilter {
+  drawDate?: string;
+  gameCode: 'DR1' | 'KL' | 'DR6' | 'DR8';
+  userId: string;
+  userRole: 'ADMIN' | 'AGENT' | 'SUBDEALER';
+}
+
 export class ReportService {
   // 1. Sales Report
   static async getSalesReport(filter: SalesReportFilter): Promise<any> {
@@ -442,6 +449,48 @@ export class ReportService {
       summary: summaryRes.rows,
       detailed: detailedRes.rows,
       totals: { totalCnt, totalSCom, totalWinC, netTotal }
+    };
+  }
+
+  // 5. Today Report
+  // Displays draw-wise information for today (DR1, KL, DR6, DR8).
+  // Shows Booked Number | Total Count only.
+  // Combines counts for identical numbers.
+  // Access control:
+  // - Admin: Views all Agents' data
+  // - Agent: Views only its own permitted subdealer hierarchy
+  // - Subdealer: Not permitted (throws access error)
+  static async getTodayReport(filter: TodayReportFilter): Promise<{ date: string; gameCode: string; records: { booked_number: string; total_count: number }[] }> {
+    if (filter.userRole === 'SUBDEALER') {
+      throw new Error('Access denied: Today Report is reserved for Agent and Admin accounts');
+    }
+
+    const today = filter.drawDate || getISTDateString();
+    const gameCode = filter.gameCode;
+
+    let whereClause = `WHERE b.draw_date = $1 AND b.game_code = $2 AND b.status = 'ACTIVE'`;
+    const params: any[] = [today, gameCode];
+
+    if (filter.userRole === 'AGENT') {
+      whereClause += ` AND (b.user_id = $3 OR b.user_id IN (SELECT id FROM users WHERE parent_id = $3))`;
+      params.push(filter.userId);
+    }
+
+    const sql = `
+      SELECT bi.booked_number, SUM(bi.count)::int AS total_count
+      FROM bill_items bi
+      JOIN bills b ON bi.bill_id = b.id
+      ${whereClause}
+      GROUP BY bi.booked_number
+      ORDER BY total_count DESC, bi.booked_number ASC
+    `;
+
+    const res = await db.query(sql, params);
+
+    return {
+      date: today,
+      gameCode,
+      records: res.rows
     };
   }
 }

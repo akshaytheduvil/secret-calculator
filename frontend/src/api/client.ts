@@ -1,9 +1,22 @@
-import { MockFallback } from './mockFallback';
+let customApiBase: string | null = null;
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
+const getApiBase = (): string => {
+  if (customApiBase) return customApiBase;
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl) return envUrl;
+  return '/api';
+};
 
 export class ApiClient {
   private static token: string | null = null;
+
+  static setBaseUrl(url: string | null) {
+    customApiBase = url;
+  }
+
+  static getBaseUrl(): string {
+    return getApiBase();
+  }
 
   static setToken(t: string | null) {
     this.token = t;
@@ -27,8 +40,10 @@ export class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    const apiBase = getApiBase();
+
     try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
+      const response = await fetch(`${apiBase}${endpoint}`, {
         ...options,
         headers
       });
@@ -43,13 +58,16 @@ export class ApiClient {
         throw new Error(data.error || 'Request failed');
       }
 
-      // If response is HTML or server is absent (e.g. GitHub Pages static host), fallback to MockFallback
-      return await MockFallback.handle(endpoint, options, headers);
-    } catch (err: any) {
-      if (err.message && !err.message.includes('JSON') && !err.message.includes('fetch') && !err.message.includes('NetworkError')) {
-        throw err;
+      if (!response.ok) {
+        throw new Error(`Central backend server returned error (HTTP ${response.status})`);
       }
-      return await MockFallback.handle(endpoint, options, headers);
+
+      throw new Error('Unexpected response format from central backend server');
+    } catch (err: any) {
+      if (err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.name === 'TypeError')) {
+        throw new Error('Unable to connect to the central Pick 3 backend. Please verify that the central server is running and accessible.');
+      }
+      throw err;
     }
   }
 
@@ -149,6 +167,13 @@ export class ApiClient {
       if (params[k] !== undefined && params[k] !== null) q.append(k, String(params[k]));
     });
     return this.request(`/reports/commission?${q.toString()}`);
+  }
+
+  static getTodayReport(gameCode: string, drawDate?: string) {
+    const q = new URLSearchParams();
+    q.append('gameCode', gameCode);
+    if (drawDate) q.append('drawDate', drawDate);
+    return this.request<{ date: string; gameCode: string; records: { booked_number: string; total_count: number }[] }>(`/reports/today?${q.toString()}`);
   }
 
   // Sub-dealers

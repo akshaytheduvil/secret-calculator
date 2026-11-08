@@ -10,5 +10,6 @@ router.get('/sales', ReportController.sales);
 router.get('/winning', ReportController.winning);
 router.get('/daily', ReportController.daily);
 router.get('/commission', ReportController.commission);
+router.get('/today', ReportController.today);
 
 export default router;

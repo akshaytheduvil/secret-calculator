@@ -206,13 +206,13 @@ export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
                   records.map((rec) => (
                     <tr key={rec.id} className="border-b border-gray-200 text-gray-800 hover:bg-gray-50">
                       <td className="py-1.5 px-1 text-left pl-3">
-                        {rec.draw_date || (rec.created_at ? new Date(rec.created_at).toLocaleDateString() : '-')}
+                        {rec.date || rec.draw_date || (rec.created_at ? new Date(rec.created_at).toLocaleDateString() : '-')}
                       </td>
-                      <td className="py-1.5 px-1 font-semibold">{rec.game_code}</td>
+                      <td className="py-1.5 px-1 font-semibold">{rec.game || rec.game_code}</td>
                       <td className="py-1.5 px-1 font-mono font-bold">{rec.winning_number}</td>
                       <td className="py-1.5 px-1">{rec.customer_name || 'Retail'}</td>
-                      <td className="py-1.5 px-1 font-mono">{rec.prize_name || 'BOARD'}</td>
-                      <td className="py-1.5 px-1 font-mono font-bold">₹ {rec.prize_amount}</td>
+                      <td className="py-1.5 px-1 font-mono">{rec.lsk_category || rec.prize_name || 'SUPER'}</td>
+                      <td className="py-1.5 px-1 font-mono font-bold">₹ {rec.winning_prize_amount ?? rec.prize_amount ?? 0}</td>
                     </tr>
                   ))
                 )}

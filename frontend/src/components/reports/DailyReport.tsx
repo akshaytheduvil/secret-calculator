@@ -171,7 +171,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       {/* State B: Report Table */}
       {viewState === 'report' && (
         <main className="p-3 flex-1 overflow-x-auto pb-10">
-          {!reportData || !reportData.days || reportData.days.length === 0 ? (
+          {!reportData || (!reportData.detailed && !reportData.days) || (reportData.detailed || reportData.days).length === 0 ? (
             <div className="py-16 text-center text-gray-400 text-xs">
               No records found for selected period
             </div>
@@ -183,21 +183,23 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                   <th className="py-1.5 px-1 border-r border-gray-300">GAME</th>
                   <th className="py-1.5 px-1 border-r border-gray-300">SALE</th>
                   <th className="py-1.5 px-1 border-r border-gray-300">WIN</th>
-                  <th className="py-1.5 px-1 border-r border-gray-300">COMM</th>
+                  <th className="py-1.5 px-1 border-r border-gray-300">DEALER</th>
                   <th className="py-1.5 px-1">BALANCE</th>
                 </tr>
               </thead>
               <tbody>
-                {reportData.days.map((row: any, idx: number) => (
+                {(reportData.detailed || reportData.days).map((row: any, idx: number) => (
                   <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                     <td className="py-1.5 px-1 border-r border-gray-200 text-left pl-2 font-medium">
                       {row.date}
                     </td>
-                    <td className="py-1.5 px-1 border-r border-gray-200">{row.game_code || selectedGame}</td>
-                    <td className="py-1.5 px-1 border-r border-gray-200 font-mono">₹{row.sale_amount}</td>
-                    <td className="py-1.5 px-1 border-r border-gray-200 font-mono">₹{row.win_amount}</td>
-                    <td className="py-1.5 px-1 border-r border-gray-200 font-mono">₹{row.commission}</td>
-                    <td className="py-1.5 px-1 font-mono font-bold">₹{row.net_balance}</td>
+                    <td className="py-1.5 px-1 border-r border-gray-200">{row.game || row.game_code || selectedGame}</td>
+                    <td className="py-1.5 px-1 border-r border-gray-200 font-mono">₹{row.sale ?? row.sale_amount ?? 0}</td>
+                    <td className="py-1.5 px-1 border-r border-gray-200 font-mono">₹{row.win ?? row.win_amount ?? 0}</td>
+                    <td className="py-1.5 px-1 border-r border-gray-200 font-mono">{row.dealer || '-'}</td>
+                    <td className={`py-1.5 px-1 font-mono font-bold ${(row.bal ?? row.net_balance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ₹{row.bal ?? row.net_balance ?? 0}
+                    </td>
                   </tr>
                 ))}
               </tbody>

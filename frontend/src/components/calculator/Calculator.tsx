@@ -11,8 +11,32 @@ export const Calculator: React.FC<CalculatorProps> = ({ onUnlock }) => {
   const [isEvaluated, setIsEvaluated] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
   const displayEndRef = useRef<HTMLDivElement>(null);
+  const tapCountRef = useRef<number>(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapTimeRef = useRef<number>(0);
 
-  // Auto scroll display right
+  // Invisible corner 5-tap detection
+  const handleCornerTap = useCallback(() => {
+    const now = Date.now();
+    // Debounce ghost touch events under 100ms
+    if (now - lastTapTimeRef.current < 100) return;
+    lastTapTimeRef.current = now;
+
+    tapCountRef.current += 1;
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+
+    if (tapCountRef.current >= 5) {
+      tapCountRef.current = 0;
+      onUnlock();
+      return;
+    }
+
+    tapTimeoutRef.current = setTimeout(() => {
+      tapCountRef.current = 0;
+    }, 2500); // 2.5s rolling window for 5 taps
+  }, [onUnlock]);
   useEffect(() => {
     if (displayEndRef.current) {
       displayEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' });
@@ -274,16 +298,21 @@ export const Calculator: React.FC<CalculatorProps> = ({ onUnlock }) => {
 
   return (
     <div className="min-h-screen bg-[#0d0e12] flex items-center justify-center p-0 sm:p-4 select-none">
-      <div className="w-full max-w-sm sm:max-w-md h-screen sm:h-auto sm:min-h-[640px] bg-[#14161d] sm:rounded-3xl shadow-2xl flex flex-col justify-between border border-zinc-800/80 p-5 sm:p-6 overflow-hidden">
+      <div className="relative w-full max-w-sm sm:max-w-md h-screen sm:h-auto sm:min-h-[640px] bg-[#14161d] sm:rounded-3xl shadow-2xl flex flex-col justify-between border border-zinc-800/80 p-5 sm:p-6 overflow-hidden">
         
-        {/* Top Header / App Brand */}
+        {/* Completely invisible tap-detection area at one specific top corner */}
+        {/* Exactly 5 consecutive taps opens Login Page. Zero visual cues, no border, no ripple, no animation */}
         <div
-          onClick={onUnlock}
-          className="flex items-center justify-between pb-2 pt-1 border-b border-zinc-800/40 cursor-pointer group"
-          title="Click to unlock or enter 11+22="
-        >
-          <span className="text-xs font-medium tracking-widest text-zinc-400 group-hover:text-zinc-200 uppercase transition-colors">Calculator</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse"></span>
+          onClick={handleCornerTap}
+          className="absolute top-0 left-0 w-14 h-14 z-30 opacity-0 cursor-default select-none"
+          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+          aria-hidden="true"
+        />
+
+        {/* Top Header / App Brand */}
+        <div className="flex items-center justify-between pb-2 pt-1 border-b border-zinc-800/40 select-none">
+          <span className="text-xs font-medium tracking-widest text-zinc-400 uppercase">Calculator</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500/80"></span>
         </div>
 
         {/* Display Area */}

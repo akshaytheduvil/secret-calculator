@@ -22,6 +22,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   const menuItems: { id: ActiveTab | 'chooseGame'; label: string }[] = isAgent
     ? [
         { id: 'booking', label: 'Number Booking' },
+        { id: 'today', label: 'Today' },
         { id: 'lastSale', label: 'Last Sale' },
         { id: 'salesReport', label: 'Sales Report' },
         { id: 'winningReport', label: 'Winning' },
@@ -69,7 +70,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
 
       {/* User / Logout Row */}
       <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-800">{user?.username}</span>
+        <span className="text-sm font-semibold text-gray-800">Welcome, {user?.username}</span>
         <button
           onClick={logout}
           className="text-xs font-bold text-black hover:text-red-600 transition-colors tracking-wide"

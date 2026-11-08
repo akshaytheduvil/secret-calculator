@@ -15,7 +15,16 @@ export interface BookingSubmissionInput {
   items: BookingItemInput[];
 }
 
+interface CachedSubmission {
+  payloadHash: string;
+  timestamp: number;
+  result: { billId: string; billNumber: string; totalCAmount: number; message: string };
+}
+
 export class BookingService {
+  private static activeSubmissions = new Set<string>();
+  private static recentSubmissions = new Map<string, CachedSubmission>();
+
   // Generate unique sequential bill number
   private static generateBillNumber(): string {
     const todayCompact = getISTDateString().replace(/-/g, '');
@@ -51,7 +60,22 @@ export class BookingService {
       throw new Error('At least one booking item is required');
     }
 
-    // 1. Fetch user & dealer configuration
+    // Check concurrency: prevent overlapping submissions from the same user
+    if (this.activeSubmissions.has(userId)) {
+      throw new Error('A booking submission is already in progress. Please wait.');
+    }
+
+    // Check duplicate payload submitted within 3 seconds
+    const payloadHash = `${gameCode}:${customerName.trim()}:${JSON.stringify(items)}`;
+    const now = Date.now();
+    const recent = this.recentSubmissions.get(userId);
+    if (recent && recent.payloadHash === payloadHash && (now - recent.timestamp) < 3000) {
+      return recent.result;
+    }
+
+    this.activeSubmissions.add(userId);
+    try {
+      // 1. Fetch user & dealer configuration
     const userRes = await db.query(
       `SELECT u.id, u.username, u.is_active, u.is_deleted,
               c.daily_sale_limit, c.max_number_count, c.blocked_numbers, 
@@ -243,13 +267,32 @@ export class BookingService {
       return { billId, billNumber, totalCAmount: billTotalCAmount };
     });
 
-    return {
+    const responseResult = {
       billId: result.billId,
       billNumber: result.billNumber,
       totalCAmount: result.totalCAmount,
       message: `Booking submitted successfully! Bill Number: ${result.billNumber}`
     };
+
+    // Store in recent submissions cache (expire after 10s)
+    this.recentSubmissions.set(userId, {
+      payloadHash,
+      timestamp: Date.now(),
+      result: responseResult
+    });
+
+    // Cleanup old entries
+    for (const [uid, item] of this.recentSubmissions.entries()) {
+      if (Date.now() - item.timestamp > 10000) {
+        this.recentSubmissions.delete(uid);
+      }
+    }
+
+    return responseResult;
+  } finally {
+    this.activeSubmissions.delete(userId);
   }
+}
 
   // Cancel Bill (Only before respective draw closes)
   static async cancelBill(billId: string, userId: string, userRole: string): Promise<void> {

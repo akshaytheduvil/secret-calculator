@@ -24,6 +24,7 @@ export type ActiveTab =
   | 'salesReport'
   | 'winningReport'
   | 'dailyReport'
+  | 'today'
   | 'results'
   | 'commission'
   | 'manageSubdealers'

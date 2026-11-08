@@ -204,31 +204,32 @@ export const SalesReport: React.FC<SalesReportProps> = ({ onBack }) => {
       {/* State B: Report Table View (PDF 2 Page 3 Top) */}
       {viewState === 'report' && (
         <main className="flex-1 overflow-x-auto pb-10">
-          {!reportData || !reportData.bills || reportData.bills.length === 0 ? (
+          {!reportData || (!reportData.records && !reportData.bills) || (reportData.records || reportData.bills).length === 0 ? (
             <div className="py-16 text-center text-gray-400 text-xs">
               No sales records found for selected criteria
             </div>
           ) : (
             <div className="space-y-1">
-              {reportData.bills.map((bill: any) => {
+              {(reportData.records || reportData.bills).map((bill: any) => {
                 // Filter items by number if specified
+                const rawItems = bill.items || [];
                 const filteredItems = numberFilter
-                  ? (bill.items || []).filter((it: any) => it.booked_number.includes(numberFilter))
-                  : bill.items || [];
+                  ? rawItems.filter((it: any) => (it.bookedNumber || it.booked_number || '').includes(numberFilter))
+                  : rawItems;
 
                 if (numberFilter && filteredItems.length === 0) return null;
 
                 return (
-                  <div key={bill.id} className="border-b border-gray-200">
+                  <div key={bill.id || bill.bill_number} className="border-b border-gray-200">
                     {/* Bill Header Row */}
                     <div className="bg-[#e4e6ea] px-2 py-1.5 grid grid-cols-6 text-[10px] font-bold text-gray-800 text-center">
                       <div className="col-span-1 text-left truncate">
                         <span className="block text-[8px] text-gray-500">DATE</span>
-                        {bill.created_at ? new Date(bill.created_at).toLocaleDateString() : '-'}
+                        {bill.draw_date || (bill.created_at ? new Date(bill.created_at).toLocaleDateString() : '-')}
                       </div>
                       <div className="col-span-1 text-left truncate">
                         <span className="block text-[8px] text-gray-500">DEALER</span>
-                        {bill.customer_name || 'Retail'}
+                        {bill.dealer || bill.customer_name || 'Retail'}
                       </div>
                       <div className="col-span-1">
                         <span className="block text-[8px] text-gray-500">BILL NO</span>
@@ -261,18 +262,25 @@ export const SalesReport: React.FC<SalesReportProps> = ({ onBack }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredItems.map((item: any, idx: number) => (
-                          <tr key={idx} className="border-b border-gray-100 text-gray-700">
-                            <td className="py-1 px-1 text-left pl-3 font-semibold uppercase">
-                              {item.lsk_category}
-                            </td>
-                            <td className="py-1 px-1 font-mono">{item.booked_number}</td>
-                            <td className="py-1 px-1">{item.count}</td>
-                            <td className="py-1 px-1 font-mono">₹ 10</td>
-                            <td className="py-1 px-1 font-mono">₹ 10.00</td>
-                            <td className="py-1 px-1 font-mono">₹ 10.00</td>
-                          </tr>
-                        ))}
+                        {filteredItems.map((item: any, idx: number) => {
+                          const lskCat = item.lskCategory || item.lsk_category || 'SUPER';
+                          const bookedNum = item.bookedNumber || item.booked_number;
+                          const cnt = item.count || 1;
+                          const unitPrice = ['A', 'B', 'C'].includes(lskCat) ? 12 : 10;
+                          const dPrice = ['A', 'B', 'C'].includes(lskCat) ? 10.9 : 8.5;
+                          return (
+                            <tr key={idx} className="border-b border-gray-100 text-gray-700">
+                              <td className="py-1 px-1 text-left pl-3 font-semibold uppercase">
+                                {lskCat}
+                              </td>
+                              <td className="py-1 px-1 font-mono">{bookedNum}</td>
+                              <td className="py-1 px-1">{cnt}</td>
+                              <td className="py-1 px-1 font-mono">₹ {unitPrice}</td>
+                              <td className="py-1 px-1 font-mono">₹ {(cnt * dPrice).toFixed(2)}</td>
+                              <td className="py-1 px-1 font-mono">₹ {(cnt * unitPrice).toFixed(0)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

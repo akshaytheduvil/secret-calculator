@@ -171,36 +171,52 @@ export const CommissionReport: React.FC<CommissionReportProps> = ({ onBack }) =>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-gray-200">
-                  <td className="py-1 px-1 border-r border-gray-200 text-left pl-2 font-medium">
-                    {user?.username || 'Aksh'}
-                  </td>
-                  <td className="py-1 px-1 border-r border-gray-200">{selectedGame}</td>
-                  <td className="py-1 px-1 border-r border-gray-200 font-mono">
-                    {data?.summary?.totalCount || 26}
-                  </td>
-                  <td className="py-1 px-1 border-r border-gray-200 font-mono">
-                    {data?.summary?.saleCommission?.toFixed(2) || '34.60'}
-                  </td>
-                  <td className="py-1 px-1 border-r border-gray-200 font-mono">0.00</td>
-                  <td className="py-1 px-1 font-mono font-bold">
-                    {data?.summary?.saleCommission?.toFixed(2) || '34.60'}
-                  </td>
-                </tr>
-                <tr className="bg-gray-50 font-bold">
-                  <td className="py-1 px-1 border-r border-gray-200 text-left pl-2">Total</td>
-                  <td className="py-1 px-1 border-r border-gray-200"></td>
-                  <td className="py-1 px-1 border-r border-gray-200 font-mono">
-                    {data?.summary?.totalCount || 26}
-                  </td>
-                  <td className="py-1 px-1 border-r border-gray-200 font-mono">
-                    {data?.summary?.saleCommission?.toFixed(0) || '35'}
-                  </td>
-                  <td className="py-1 px-1 border-r border-gray-200 font-mono">0</td>
-                  <td className="py-1 px-1 font-mono">
-                    {data?.summary?.saleCommission?.toFixed(0) || '35'}
-                  </td>
-                </tr>
+                {!data?.summary || data.summary.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-4 text-center text-gray-400 text-xs">
+                      No commission summary available
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {data.summary.map((row: any, idx: number) => (
+                      <tr key={idx} className="border-b border-gray-200">
+                        <td className="py-1 px-1 border-r border-gray-200 text-left pl-2 font-medium">
+                          {row.sub_dealer || user?.username}
+                        </td>
+                        <td className="py-1 px-1 border-r border-gray-200">{row.game}</td>
+                        <td className="py-1 px-1 border-r border-gray-200 font-mono">
+                          {row.tot_cnt}
+                        </td>
+                        <td className="py-1 px-1 border-r border-gray-200 font-mono">
+                          ₹{Number(row.s_com).toFixed(2)}
+                        </td>
+                        <td className="py-1 px-1 border-r border-gray-200 font-mono">
+                          ₹{Number(row.win_c).toFixed(2)}
+                        </td>
+                        <td className="py-1 px-1 font-mono font-bold">
+                          ₹{Number(row.total).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-gray-50 font-bold">
+                      <td className="py-1 px-1 border-r border-gray-200 text-left pl-2">Total</td>
+                      <td className="py-1 px-1 border-r border-gray-200"></td>
+                      <td className="py-1 px-1 border-r border-gray-200 font-mono">
+                        {data?.totals?.totalCnt ?? 0}
+                      </td>
+                      <td className="py-1 px-1 border-r border-gray-200 font-mono">
+                        ₹{(data?.totals?.totalSCom ?? 0).toFixed(2)}
+                      </td>
+                      <td className="py-1 px-1 border-r border-gray-200 font-mono">
+                        ₹{(data?.totals?.totalWinC ?? 0).toFixed(2)}
+                      </td>
+                      <td className="py-1 px-1 font-mono">
+                        ₹{(data?.totals?.netTotal ?? 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -223,29 +239,27 @@ export const CommissionReport: React.FC<CommissionReportProps> = ({ onBack }) =>
                 </tr>
               </thead>
               <tbody>
-                {(data?.detailed && data.detailed.length > 0
-                  ? data.detailed
-                  : [
-                      { date: '2026-10-20', count: 5, saleC: 7.50, winC: 0.00, total: 7.50 },
-                      { date: '2026-10-21', count: 5, saleC: 7.50, winC: 0.00, total: 7.50 },
-                      { date: '2026-10-22', count: 8, saleC: 10.00, winC: 0.00, total: 10.00 },
-                      { date: '2026-10-23', count: 1, saleC: 1.50, winC: 0.00, total: 1.50 },
-                      { date: '2026-10-25', count: 6, saleC: 6.60, winC: 0.00, total: 6.60 },
-                      { date: '2026-10-30', count: 1, saleC: 1.50, winC: 0.00, total: 1.50 }
-                    ]
-                ).map((row: any, idx: number) => (
-                  <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-1 px-1 border-r border-gray-200 text-left pl-2 font-medium">
-                      {user?.username || 'Aksh'}
+                {!data?.detailed || data.detailed.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-4 text-center text-gray-400 text-xs">
+                      No detailed commission records found
                     </td>
-                    <td className="py-1 px-1 border-r border-gray-200">{selectedGame}</td>
-                    <td className="py-1 px-1 border-r border-gray-200">{row.date}</td>
-                    <td className="py-1 px-1 border-r border-gray-200 font-mono">{row.count}</td>
-                    <td className="py-1 px-1 border-r border-gray-200 font-mono">{row.saleC?.toFixed(2)}</td>
-                    <td className="py-1 px-1 border-r border-gray-200 font-mono">{row.winC?.toFixed(2) || '0.00'}</td>
-                    <td className="py-1 px-1 font-mono font-bold">{row.total?.toFixed(2)}</td>
                   </tr>
-                ))}
+                ) : (
+                  data.detailed.map((row: any, idx: number) => (
+                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="py-1 px-1 border-r border-gray-200 text-left pl-2 font-medium">
+                        {row.sub_dealer || user?.username}
+                      </td>
+                      <td className="py-1 px-1 border-r border-gray-200">{row.game}</td>
+                      <td className="py-1 px-1 border-r border-gray-200">{row.date}</td>
+                      <td className="py-1 px-1 border-r border-gray-200 font-mono">{row.tot_cnt}</td>
+                      <td className="py-1 px-1 border-r border-gray-200 font-mono">₹{Number(row.sale_c).toFixed(2)}</td>
+                      <td className="py-1 px-1 border-r border-gray-200 font-mono">₹{Number(row.win_c).toFixed(2)}</td>
+                      <td className="py-1 px-1 font-mono font-bold">₹{Number(row.total).toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

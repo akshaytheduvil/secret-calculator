@@ -12,12 +12,14 @@ import {
   Plus,
   RefreshCw,
   LogOut,
-  X
+  X,
+  Calendar
 } from 'lucide-react';
+import { TodayReport } from '../reports/TodayReport';
 
 export const AdminPortal: React.FC = () => {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agents' | 'results' | 'prizes' | 'draws'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'today' | 'agents' | 'results' | 'prizes' | 'draws'>('dashboard');
 
   // Dashboard Metrics
   const [metrics, setMetrics] = useState({
@@ -144,6 +146,12 @@ export const AdminPortal: React.FC = () => {
     fetchAgents();
     fetchDraws();
     fetchPrizes();
+
+    // Real-time synchronization for Admin dashboard
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 10000);
+    return () => clearInterval(interval);
   }, [fetchDashboardData, fetchAgents, fetchDraws, fetchPrizes]);
 
   useEffect(() => {
@@ -245,6 +253,7 @@ export const AdminPortal: React.FC = () => {
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Layers },
+    { id: 'today', label: 'Today', icon: Calendar },
     { id: 'agents', label: 'Agents', icon: Users },
     { id: 'results', label: 'Results', icon: Award },
     { id: 'prizes', label: 'Prizes', icon: DollarSign },
@@ -257,7 +266,7 @@ export const AdminPortal: React.FC = () => {
       <header className="bg-[#ff0000] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-2">
           <span className="font-bold text-base tracking-wide">Admin Console</span>
-          <span className="text-xs text-white/80 font-mono">({user?.username})</span>
+          <span className="text-xs text-white/90 font-medium">Welcome, {user?.username}</span>
         </div>
 
         <button
@@ -330,7 +339,14 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
-        {/* 2. Agents */}
+        {/* 2. Today Report */}
+        {activeTab === 'today' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <TodayReport onBack={() => setActiveTab('dashboard')} />
+          </div>
+        )}
+
+        {/* 3. Agents */}
         {activeTab === 'agents' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
