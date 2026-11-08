@@ -1,9 +1,33 @@
+const DEFAULT_LAN_BACKEND = 'http://192.168.220.36:5000/api';
+
 let customApiBase: string | null = null;
+
+const getStoredBackendUrl = (): string | null => {
+  try {
+    return localStorage.getItem('central_backend_url');
+  } catch {
+    return null;
+  }
+};
 
 const getApiBase = (): string => {
   if (customApiBase) return customApiBase;
+  const stored = getStoredBackendUrl();
+  if (stored && stored.trim()) return stored.trim().replace(/\/+$/, '');
+
   const envUrl = (import.meta as any).env?.VITE_API_URL;
-  if (envUrl) return envUrl;
+  if (envUrl && envUrl.trim()) return envUrl.trim().replace(/\/+$/, '');
+
+  // Detect native Android / Capacitor environment where host is localhost
+  if (typeof window !== 'undefined' && window.location) {
+    const isCapacitor =
+      window.location.protocol === 'capacitor:' ||
+      (window.location.hostname === 'localhost' && window.location.protocol === 'https:');
+    if (isCapacitor) {
+      return DEFAULT_LAN_BACKEND;
+    }
+  }
+
   return '/api';
 };
 
@@ -11,11 +35,40 @@ export class ApiClient {
   private static token: string | null = null;
 
   static setBaseUrl(url: string | null) {
-    customApiBase = url;
+    customApiBase = url ? url.trim().replace(/\/+$/, '') : null;
+    try {
+      if (customApiBase) {
+        localStorage.setItem('central_backend_url', customApiBase);
+      } else {
+        localStorage.removeItem('central_backend_url');
+      }
+    } catch {}
   }
 
   static getBaseUrl(): string {
     return getApiBase();
+  }
+
+  static async checkHealth(customUrl?: string): Promise<{ ok: boolean; status?: string; message: string }> {
+    const target = customUrl ? customUrl.trim().replace(/\/+$/, '') : getApiBase();
+    try {
+      const url = target.endsWith('/api') ? `${target}/health` : `${target}/api/health`;
+      const res = await fetch(url, { method: 'GET' });
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        return { ok: true, status: data.status || 'healthy', message: 'Connected to Central Backend' };
+      }
+      return {
+        ok: false,
+        message: `Server returned non-JSON response (${contentType || res.statusText}). Verify the Central Server URL.`
+      };
+    } catch (err: any) {
+      return {
+        ok: false,
+        message: `Cannot reach Central Backend: ${err.message || 'Network unreachable'}`
+      };
+    }
   }
 
   static setToken(t: string | null) {
@@ -58,14 +111,24 @@ export class ApiClient {
         throw new Error(data.error || 'Request failed');
       }
 
-      if (!response.ok) {
-        throw new Error(`Central backend server returned error (HTTP ${response.status})`);
+      if (contentType.includes('text/html')) {
+        throw new Error(
+          `Central backend server returned an HTML webpage instead of API JSON response from ${apiBase}${endpoint}. ` +
+          `Please check that your Central Server URL is configured properly in Server Settings.`
+        );
       }
 
-      throw new Error('Unexpected response format from central backend server');
+      if (!response.ok) {
+        throw new Error(`Central backend server returned HTTP error ${response.status} (${response.statusText})`);
+      }
+
+      throw new Error(`Unexpected response (${contentType || 'empty'}) from central backend server at ${apiBase}`);
     } catch (err: any) {
-      if (err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.name === 'TypeError')) {
-        throw new Error('Unable to connect to the central Pick 3 backend. Please verify that the central server is running and accessible.');
+      if (err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.name === 'TypeError' || err.message.includes('Failed to fetch'))) {
+        throw new Error(
+          `Unable to connect to Central Backend at ${apiBase}. ` +
+          `Please verify that the central server is running and accessible from this device.`
+        );
       }
       throw err;
     }

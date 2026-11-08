@@ -51,16 +51,21 @@ jobs:
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.1
-          name: "Secret Calculator Android APK v1.1.1 (Debug Build)"
+          tag_name: v1.1.2
+          name: "Secret Calculator Android APK v1.1.2 (Debug Build)"
           files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           body: |
-            ### Secret Calculator Connected Application - Debug APK v1.1.1
+            ### Secret Calculator Connected Application - Debug APK v1.1.2
             Download the Android Debug APK below and install on your phone.
             - **Build Type:** Debug APK (demo & testing only, nonredeemable)
-            - **Version:** v1.1.1 (versionCode 3)
+            - **Version:** v1.1.2 (versionCode 4)
             - **Package ID:** `com.app.calculator`
             - **App Name:** Calculator
+            - **Central Server Connection:**
+              - Features Server Settings configuration directly on the login screen
+              - Auto-defaults to local PC Wi-Fi IP `http://192.168.220.36:5000/api`
+              - Supports custom hosted / remote backend URLs with live connection tester
+              - Android cleartext HTTP permitted for local network testing
             - **Secret Triggers:**
               - Arithmetic: `11 + 22 =`
               - Hidden: 5 consecutive taps on the invisible top-left corner
