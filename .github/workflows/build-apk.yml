@@ -54,19 +54,23 @@ jobs:
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: "Secret Calculator Android APK v1.1.0 (Debug Build)"
+          tag_name: v1.1.1
+          name: "Secret Calculator Android APK v1.1.1 (Debug Build)"
           files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           body: |
-            ### Secret Calculator Connected Application - Debug APK v1.1.0
+            ### Secret Calculator Connected Application - Debug APK v1.1.1
             Download the Android Debug APK below and install on your phone.
             - **Build Type:** Debug APK (demo & testing only, nonredeemable)
-            - **Version:** v1.1.0 (versionCode 2)
+            - **Version:** v1.1.1 (versionCode 3)
             - **Package ID:** `com.app.calculator`
             - **App Name:** Calculator
             - **Secret Triggers:**
               - Arithmetic: `11 + 22 =`
               - Hidden: 5 consecutive taps on the invisible top-left corner
+            - **Demo Accounts (Updated Credentials):**
+              - Admin: `admin` / `admin`
+              - Agent: `agent` / `agnet`
+              - Sub-dealer: `test` / `test`
             - **Portion 3 Features:**
               - 5 Booking Modes: Book, Range, Set, Hundreds, Ones
               - WhatsApp Smart Paste parser with live preview
@@ -74,9 +78,5 @@ jobs:
               - Real-time Today Report with draw tabs (DR1, KL, DR6, DR8)
               - Centralized PostgreSQL backend (zero localStorage fallback)
               - Native social result sharing (WhatsApp, Telegram, SMS)
-            - **Demo Accounts:**
-              - Admin: `admin` / `admin123`
-              - Agent: `agent` / `agent123`
-              - Sub-dealer: `test` / `test`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

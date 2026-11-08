@@ -26,8 +26,8 @@ The platform initializes with a clean ledger (zero prefilled/fake bookings) and 
 
 | Role | Username | Password | Features & Scope |
 | :--- | :--- | :--- | :--- |
-| **Admin A** | `admin` | `admin123` | Master governance: 4 summary cards, Agent B management, progressive draw results, prize configuration, draw controls |
-| **Agent B** | `agent` | `agent123` | Full control over sub-dealers: Create/Edit/Deactivate/Delete sub-dealers, ticket & wholesale prices, allocations, booking repetition limits, blocked numbers, daily sales limits, subordinate daily reports |
+| **Admin A** | `admin` | `admin` | Master governance: 4 summary cards, Agent B management, progressive draw results, prize configuration, draw controls |
+| **Agent B** | `agent` | `agnet` | Full control over sub-dealers: Create/Edit/Deactivate/Delete sub-dealers, ticket & wholesale prices, allocations, booking repetition limits, blocked numbers, daily sales limits, subordinate daily reports |
 | **Sub-dealer C** | `test` | `test` | All games enabled (`DR1`, `KL`, `DR6`, `DR8`), Number Booking, Last Sale, Sales Report, Winning Report, Daily Report, Results, Commissions. Empty ledger ready for manual booking |
 
 *Note: The test credentials are for development and testing only. Admin A can delete the test account at any time, which revokes login access immediately while preserving historical accounting records and usernames.*

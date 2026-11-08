@@ -33,6 +33,20 @@ test('Full Integration Test Suite: Auth, Sub-dealer C, Business Logic & Prize Re
     assert.equal(Number(billsRes.rows[0].cnt), 0, 'Test account must start with zero dummy bookings');
   });
 
+  await t.test('Admin Login with admin/admin', async () => {
+    const res = await AuthService.login('admin', 'admin');
+    assert.ok(res.token, 'Token must be issued');
+    assert.equal(res.user.username, 'admin');
+    assert.equal(res.user.role, 'ADMIN');
+  });
+
+  await t.test('Agent Login with agent/agnet', async () => {
+    const res = await AuthService.login('agent', 'agnet');
+    assert.ok(res.token, 'Token must be issued');
+    assert.equal(res.user.username, 'agent');
+    assert.equal(res.user.role, 'AGENT');
+  });
+
   await t.test('Milestone 2: Invalid Login Rejected', async () => {
     await assert.rejects(
       async () => {
