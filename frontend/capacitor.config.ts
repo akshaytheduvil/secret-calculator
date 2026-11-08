@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Calculator',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true
   }
 };
 
