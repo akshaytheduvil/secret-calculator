@@ -11,5 +11,9 @@ frontend/android/.gradle/
 frontend/android/app/build/
 frontend/android/build/
 backend/data/
+cloudflared.exe
+*.exe
 data/
+cloudflared.exe
+*.exe
 

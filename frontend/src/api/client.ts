@@ -1,3 +1,5 @@
+const DEFAULT_CLOUD_API = 'https://associates-reputation-monsters-supported.trycloudflare.com/api';
+
 let customApiBase: string | null = null;
 
 const getApiBase = (): string => {
@@ -12,9 +14,17 @@ const getApiBase = (): string => {
     if (window.location.protocol.startsWith('http') && window.location.host && !window.location.host.includes('localhost')) {
       return `${window.location.origin}/api`;
     }
+
+    // 3. Native mobile Capacitor environment (origin is localhost)
+    const isCapacitor =
+      window.location.protocol === 'capacitor:' ||
+      (window.location.hostname === 'localhost' && window.location.protocol === 'https:');
+    if (isCapacitor) {
+      return DEFAULT_CLOUD_API;
+    }
   }
 
-  // 3. Default relative endpoint
+  // 4. Default relative endpoint
   return '/api';
 };
 
