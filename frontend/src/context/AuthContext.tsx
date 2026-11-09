@@ -71,11 +71,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onSessionEnd: (
     };
 
     window.addEventListener('beforeunload', handleUnloadOrHide);
-    window.addEventListener('pagehide', handleUnloadOrHide);
 
     return () => {
       window.removeEventListener('beforeunload', handleUnloadOrHide);
-      window.removeEventListener('pagehide', handleUnloadOrHide);
     };
   }, []);
 

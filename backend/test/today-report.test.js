@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { db } from '../dist/database/db.js';
 import { AuthService } from '../dist/services/auth.service.js';
 import { BookingService } from '../dist/services/booking.service.js';
+import { DrawService } from '../dist/services/draw.service.js';
 import { ReportService } from '../dist/services/report.service.js';
 import { UserService } from '../dist/services/user.service.js';
 import { getISTDateString } from '../dist/utils/timezone.js';
@@ -59,16 +60,22 @@ test('Milestone 4: Today Report & Live Synchronization Test Suite', async (t) =>
     ]
   });
 
+  // Get active draw dates for DR6 and DR8 dynamically to support any execution time
+  const dr6Active = await DrawService.getActiveDrawForBooking('DR6');
+  const dr8Active = await DrawService.getActiveDrawForBooking('DR8');
+  const dr6Date = dr6Active.draw_date;
+  const dr8Date = dr8Active.draw_date;
+
   await t.test('Today Report: Combines counts for identical numbers and separates draws', async () => {
     const dr6Report = await ReportService.getTodayReport({
-      drawDate: today,
+      drawDate: dr6Date,
       gameCode: 'DR6',
       userId: agentId,
       userRole: 'AGENT'
     });
 
     assert.equal(dr6Report.gameCode, 'DR6');
-    assert.equal(dr6Report.date, today);
+    assert.equal(dr6Report.date, dr6Date);
 
     // Number 550 should have 10 + 20 = 30 count
     const num550 = dr6Report.records.find((r) => r.booked_number === '550');
@@ -87,7 +94,7 @@ test('Milestone 4: Today Report & Live Synchronization Test Suite', async (t) =>
 
     // DR8 must not be combined with DR6:
     const dr8Report = await ReportService.getTodayReport({
-      drawDate: today,
+      drawDate: dr8Date,
       gameCode: 'DR8',
       userId: agentId,
       userRole: 'AGENT'
@@ -102,7 +109,7 @@ test('Milestone 4: Today Report & Live Synchronization Test Suite', async (t) =>
     await assert.rejects(
       async () => {
         await ReportService.getTodayReport({
-          drawDate: today,
+          drawDate: dr6Date,
           gameCode: 'DR6',
           userId: testSubId,
           userRole: 'SUBDEALER'
@@ -113,7 +120,7 @@ test('Milestone 4: Today Report & Live Synchronization Test Suite', async (t) =>
 
     // 2. Admin can view all
     const adminReport = await ReportService.getTodayReport({
-      drawDate: today,
+      drawDate: dr6Date,
       gameCode: 'DR6',
       userId: adminId,
       userRole: 'ADMIN'
