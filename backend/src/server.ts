@@ -6,7 +6,7 @@ import { db } from './database/db.js';
 import { AuthService } from './services/auth.service.js';
 import { DrawService } from './services/draw.service.js';
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 async function bootstrap() {
   try {
@@ -19,8 +19,8 @@ async function bootstrap() {
     // Pre-initialize today's draws
     await DrawService.getDrawOverview();
 
-    app.listen(PORT, () => {
-      console.log(`[Server] Secret Calculator Connected API running on http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[Server] Secret Calculator Connected API running on port ${PORT}`);
     });
   } catch (err) {
     console.error('[Server] Fatal bootstrap error:', err);

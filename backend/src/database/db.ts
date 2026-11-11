@@ -33,10 +33,20 @@ class DatabaseService {
         await this.pgPool.query('SELECT 1');
         this.isExternal = true;
         console.log('[DB] Connected to centralized cloud PostgreSQL via DATABASE_URL');
-      } catch (err) {
-        console.warn('[DB] Failed to connect to external PostgreSQL, falling back to embedded PGlite:', (err as Error).message);
-        this.pgPool = null;
-        this.isExternal = false;
+      } catch (sslErr: any) {
+        try {
+          this.pgPool = new pg.Pool({
+            connectionString: dbUrl,
+            ssl: false
+          });
+          await this.pgPool.query('SELECT 1');
+          this.isExternal = true;
+          console.log('[DB] Connected to centralized cloud PostgreSQL via non-SSL DATABASE_URL');
+        } catch (err: any) {
+          console.warn('[DB] Failed to connect to external PostgreSQL, falling back to embedded PGlite:', err.message);
+          this.pgPool = null;
+          this.isExternal = false;
+        }
       }
     }
 
