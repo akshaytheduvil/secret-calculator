@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: apexbook-backend
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build --workspace=backend
+    startCommand: npm start --workspace=backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: apexbook-postgres
+          property: connectionString
+
+databases:
+  - name: apexbook-postgres
+    databaseName: apexbook
+    user: apexbook_user
+    plan: free
+    region: oregon

@@ -1,4 +1,4 @@
-const DEFAULT_CLOUD_API = 'https://associates-reputation-monsters-supported.trycloudflare.com/api';
+const DEFAULT_CLOUD_API = 'https://apexbook-backend.onrender.com/api';
 
 let customApiBase: string | null = null;
 
@@ -63,37 +63,55 @@ export class ApiClient {
 
     const apiBase = getApiBase();
 
-    try {
-      const response = await fetch(`${apiBase}${endpoint}`, {
-        ...options,
-        headers
-      });
+    let lastError: any = null;
+    const maxRetries = 2;
 
-      const contentType = response.headers.get('content-type') || '';
-      if (response.ok && contentType.includes('application/json')) {
-        return await response.json();
-      }
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(`${apiBase}${endpoint}`, {
+          ...options,
+          headers
+        });
 
-      if (!response.ok && contentType.includes('application/json')) {
-        const data = await response.json();
-        throw new Error(data.error || 'Request failed');
-      }
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
+          return await response.json();
+        }
 
-      if (contentType.includes('text/html')) {
-        throw new Error('Unable to connect to the central service. Please try again.');
-      }
+        if (!response.ok && contentType.includes('application/json')) {
+          const data = await response.json();
+          throw new Error(data.error || 'Request failed');
+        }
 
-      if (!response.ok) {
-        throw new Error(`Central backend returned error (HTTP ${response.status})`);
-      }
+        if (contentType.includes('text/html')) {
+          // If receiving HTML (e.g. 502/503 bad gateway from proxy waking up) and retries remain, retry
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2500));
+            continue;
+          }
+          throw new Error('Unable to connect to the central service. Please try again.');
+        }
 
-      throw new Error('Unexpected response from central backend server');
-    } catch (err: any) {
-      if (err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.name === 'TypeError' || err.message.includes('Failed to fetch'))) {
-        throw new Error('Unable to connect to the central service. Please check your connection and try again.');
+        if (!response.ok) {
+          throw new Error(`Central backend returned error (HTTP ${response.status})`);
+        }
+
+        throw new Error('Unexpected response from central backend server');
+      } catch (err: any) {
+        lastError = err;
+        // Retry on network errors or connection refused while cloud host wakes up
+        if (attempt < maxRetries && (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('NetworkError'))) {
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          continue;
+        }
+        break;
       }
-      throw err;
     }
+
+    if (lastError?.message && (lastError.message.includes('fetch') || lastError.message.includes('NetworkError') || lastError.name === 'TypeError' || lastError.message.includes('Failed to fetch'))) {
+      throw new Error('Unable to connect to the central service. Please check your connection and try again.');
+    }
+    throw lastError;
   }
 
   // Auth
