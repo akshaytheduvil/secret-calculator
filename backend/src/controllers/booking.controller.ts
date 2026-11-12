@@ -35,6 +35,24 @@ export class BookingController {
     }
   }
 
+  static async edit(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      const { billId } = req.params;
+      const { customerName, items } = req.body;
+      const result = await BookingService.editBill(billId, req.user.id, req.user.role, {
+        customerName,
+        items
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Booking update failed' });
+    }
+  }
+
   static async lastSale(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {

@@ -242,6 +242,83 @@ test('Full Integration Test Suite: Auth, Sub-dealer C, Business Logic & Prize Re
     assert.equal(billCheck.rows[0].status, 'CANCELLED');
   });
 
+  await t.test('Last Sale Details, Edit Booking, and Post-Cutoff Protection', async () => {
+    // 1. Ensure DR1 draw is open
+    const dr1 = await DrawService.getActiveDrawForBooking('DR1');
+    await DrawService.setManualStatus(dr1.id, 'OPEN');
+
+    // 2. Submit a booking on DR1
+    const booking = await BookingService.submitBooking({
+      userId: testUserId,
+      customerName: 'Edit Customer',
+      gameCode: 'DR1',
+      items: [
+        { lskCategory: 'SUPER', bookedNumber: '456', count: 2 },
+        { lskCategory: 'BOX', bookedNumber: '456', count: 1 }
+      ]
+    });
+
+    // 3. Verify getLastSale returns full item details, rates, and amounts
+    const lastSales = await BookingService.getLastSale(testUserId, 'DR1', 'SUBDEALER');
+    assert(lastSales.length > 0, 'Must return last sale');
+    const lastSale = lastSales[0];
+    assert.equal(lastSale.bill_number, booking.billNumber);
+    assert.equal(lastSale.isEditable, true, 'Must be editable before draw cutoff');
+    assert.equal(lastSale.total_count, 3);
+    assert.equal(Number(lastSale.total_c_amount), 30);
+    assert(lastSale.items.length >= 2, 'Must have at least 2 items');
+
+    const item1 = lastSale.items.find(i => i.lskCategory === 'SUPER');
+    assert(item1, 'SUPER item exists');
+    assert.equal(item1.count, 2);
+    assert.equal(item1.unitCPrice, 10);
+    assert.equal(item1.totalCAmount, 20);
+
+    // 4. Edit booking before draw closes: change SUPER count to 3
+    const editRes = await BookingService.editBill(booking.billId, testUserId, 'SUBDEALER', {
+      customerName: 'Updated Customer',
+      items: [
+        { lskCategory: 'SUPER', bookedNumber: '456', count: 3 }
+      ]
+    });
+    assert.equal(editRes.totalCAmount, 30);
+
+    // Verify updated bill in database
+    const updatedSales = await BookingService.getLastSale(testUserId, 'DR1', 'SUBDEALER');
+    assert.equal(updatedSales[0].total_count, 3);
+    assert.equal(updatedSales[0].customer_name, 'Updated Customer');
+    assert.equal(updatedSales[0].items.length, 1);
+
+    // 5. Close the draw manually
+    await DrawService.setManualStatus(dr1.id, 'CLOSED');
+
+    // Verify isEditable is false
+    const closedSales = await BookingService.getLastSale(testUserId, 'DR1', 'SUBDEALER');
+    assert.equal(closedSales[0].isEditable, false, 'Must not be editable when draw is closed');
+
+    // 6. Attempting to edit after draw closed must be blocked!
+    await assert.rejects(
+      async () => {
+        await BookingService.editBill(booking.billId, testUserId, 'SUBDEALER', {
+          items: [{ lskCategory: 'SUPER', bookedNumber: '456', count: 1 }]
+        });
+      },
+      /Cannot edit booking: Draw has already closed/
+    );
+
+    // 7. Attempting to delete after draw closed must be blocked!
+    await assert.rejects(
+      async () => {
+        await BookingService.cancelBill(booking.billId, testUserId, 'SUBDEALER');
+      },
+      /Cannot cancel booking: Draw has already closed/
+    );
+
+    // Cleanup: reopen draw and cancel
+    await DrawService.setManualStatus(dr1.id, 'OPEN');
+    await BookingService.cancelBill(booking.billId, testUserId, 'SUBDEALER');
+  });
+
   await t.test('Milestone 7: Prize Reconciliation & Matching Rules', async () => {
     // 1. Submit tickets on DR8:
     // SUPER 977 (count 1)

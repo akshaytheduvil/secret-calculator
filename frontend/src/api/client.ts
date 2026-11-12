@@ -138,6 +138,13 @@ export class ApiClient {
     });
   }
 
+  static editBill(billId: string, payload: { customerName?: string; items: any[] }) {
+    return this.request(`/booking/bill/${billId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
   static cancelBill(billId: string) {
     return this.request(`/booking/cancel/${billId}`, { method: 'POST' });
   }
