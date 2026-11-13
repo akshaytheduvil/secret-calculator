@@ -62,22 +62,21 @@ jobs:
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.5
-          name: "ApexBook Secret Calculator Android APK v1.1.5 (Last Sale & Pre-Draw Edit/Delete)"
+          tag_name: v1.1.6
+          name: "ApexBook Secret Calculator Android APK v1.1.6 (3-dot Edit/Delete + Direct Paste)"
           files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           body: |
-            ### ApexBook Connected Application - Android APK v1.1.5
+            ### ApexBook Connected Application - Android APK v1.1.6
             Download and install the Android APK below.
 
             - **Build Type:** Debug APK (demo & simulation only, strictly nonredeemable)
-            - **Version:** v1.1.5 (versionCode 7)
+            - **Version:** v1.1.6
             - **Package ID:** `com.app.calculator`
             - **App Name:** Calculator
-            - **New in v1.1.5:**
-              - **Last Sale Details Display:** Prominently displays the latest booking details on the booking screen and in Last Sale from the moment booked until the draw is taken.
-              - **Itemized Details:** Full number booked, category, count, rate, D.Amount, and C.Amount breakdown.
-              - **Pre-Draw Edit & Delete:** Edit numbers/counts or delete active bookings before draw cutoff time.
-              - **Cutoff Protection:** Edit and delete are automatically locked and rejected once the draw closes or is taken.
+            - **New in v1.1.6:**
+              - **3-Dot Menu on Last Sale:** Each bill card now shows a ⋮ corner menu (always visible). Tap it to get Edit and Delete options — no draw-lock restriction on the UI (backend still enforces cutoff).
+              - **Direct Smart Paste:** Clipboard Paste button now instantly reads clipboard and adds entries straight to the bill — no modal, no preview, no extra step. Shows toast feedback ("N entries added").
+              - **Removed Last Sale from Booking Screen:** Last Sale section no longer appears inside Number Booking. Use the dedicated Last Sale screen from the menu instead.
             - **Centralized Cloud Backend Architecture:**
               - Auto-connected to Central Cloud Backend: `https://apexbook-backend.onrender.com/api`
               - Independent 24/7 cloud connectivity (Zero reliance on host PC or local network)
@@ -89,14 +88,11 @@ jobs:
               - Invisible Corner Trigger: 5 rapid taps on the top-left corner
             - **Default Cloud Demo Accounts (Central Database):**
               - Subdealer: `test` / `test`
-              - Agent: `agent` / `agnet` (or `agent`)
-              - Admin: `admin` / `admin`
-              - Subdealer: `test` / `test`
-              - Agent: `agent` / `agnet` (or `agent`)
+              - Agent: `agent` / `agent`
               - Admin: `admin` / `admin`
             - **Core Features Verified:**
               - 5 Booking Modes: Book, Range, Set, Hundreds, Ones
-              - WhatsApp Smart Paste parser with live validation and preview
+              - WhatsApp Smart Paste parser — direct to bill with toast feedback
               - Centralized Cloud PostgreSQL Database synchronization
               - Real-time Today Report for DR1, KL, DR6, DR8
               - Role-based permissions and hierarchical security
