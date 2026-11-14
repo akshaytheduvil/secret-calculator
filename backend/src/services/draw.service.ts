@@ -11,11 +11,14 @@ export interface DrawSchedule {
 }
 
 export const DEFAULT_CLOSING_TIMES: Record<string, string> = {
-  DR1: '13:00:00',
-  KL: '15:00:00',
-  DR6: '18:00:00',
-  DR8: '20:00:00'
+  DR1: '12:50:00',
+  KL:  '14:50:00',
+  DR6: '17:50:00',
+  DR8: '19:50:00'
 };
+
+// Booking opens for next-day draws at 9 PM IST
+const BOOKING_REOPEN_TIME = '21:00:00';
 
 export class DrawService {
   // Ensure draws exist for given date
@@ -54,12 +57,13 @@ export class DrawService {
     return insertRes.rows[0];
   }
 
-  // Get active draw for booking (with automatic scheduled cutoff & next-day rollover)
+  // Get active draw for booking (with automatic scheduled cutoff & next-day rollover at 9 PM)
   static async getActiveDrawForBooking(gameCode: string): Promise<DrawSchedule> {
     const today = getISTDateString();
+    const currentTime = getISTTimeString();
     let todayDraw = await this.ensureDrawForDate(gameCode, today);
 
-    // Check if auto-closing time reached (if not manually overridden to OPEN)
+    // Auto-close today's draw if past closing time (and not manually overridden)
     if (todayDraw.status === 'OPEN' && !todayDraw.manual_override) {
       if (isPastClosingTime(todayDraw.scheduled_close_time)) {
         await db.query(
@@ -70,11 +74,15 @@ export class DrawService {
       }
     }
 
-    // If today's draw is closed or published, booking rolls over to tomorrow's draw!
+    // If today's draw is CLOSED/PUBLISHED:
     if (todayDraw.status === 'CLOSED' || todayDraw.status === 'PUBLISHED') {
-      const tomorrow = getNextISTDateString();
-      const tomorrowDraw = await this.ensureDrawForDate(gameCode, tomorrow);
-      return tomorrowDraw;
+      // Allow next-day booking only after 9 PM IST
+      if (currentTime >= BOOKING_REOPEN_TIME) {
+        const tomorrow = getNextISTDateString();
+        return await this.ensureDrawForDate(gameCode, tomorrow);
+      }
+      // Between close time and 9 PM — booking is unavailable
+      throw new Error(`DRAW_CLOSED: Booking for ${gameCode} is closed. Opens at 9:00 PM for next draw.`);
     }
 
     return todayDraw;

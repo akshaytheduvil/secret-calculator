@@ -12,5 +12,6 @@ router.post('/edit/:billId', BookingController.edit);
 router.post('/cancel/:billId', BookingController.cancel);
 router.delete('/bill/:billId', BookingController.cancel);
 router.get('/last-sale/:gameCode', BookingController.lastSale);
+router.get('/draw-status/:gameCode', BookingController.drawStatus);
 
 export default router;

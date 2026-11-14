@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GameProvider, useGame, GameCode } from './context/GameContext';
 import { Calculator } from './components/calculator/Calculator';
@@ -36,41 +36,44 @@ const MainApplicationContent: React.FC<{
     return 'menu';
   });
 
+  // Double-back-press to exit (Android)
+  const backPressedOnce = useRef(false);
+  const backPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Centralized Mobile & Browser Back Navigation
   // Follows: Last Sale -> Menu -> Dashboard/Games -> Login -> Exit Application
   const handleBackNavigation = useCallback(() => {
     if (currentView === 'dashboard') {
       if (activeTab !== 'menu') {
-        // Last Sale (or any open tab) -> Menu
         setActiveTab('menu');
         window.history.pushState({ view: 'dashboard', tab: 'menu' }, '');
       } else {
-        // Menu -> Game selection
         setCurrentView('games');
         window.history.pushState({ view: 'games' }, '');
       }
     } else if (currentView === 'games' || currentView === 'admin') {
-      // Dashboard/Games/Admin -> Login (terminates session)
       logout();
       setCurrentView('login');
       window.history.pushState({ view: 'login' }, '');
-    } else if (currentView === 'login') {
-      // Login -> Exit application
-      import('@capacitor/app')
-        .then(({ App: CapApp }) => {
-          CapApp.exitApp();
-        })
-        .catch(() => {
-          if (window.history.length > 1) {
-            window.history.back();
-          }
-        });
-    } else if (currentView === 'calculator') {
-      import('@capacitor/app')
-        .then(({ App: CapApp }) => {
-          CapApp.exitApp();
-        })
-        .catch(() => {});
+    } else if (currentView === 'login' || currentView === 'calculator') {
+      // Double-back to exit: first press shows toast, second press exits
+      if (backPressedOnce.current) {
+        if (backPressTimer.current) clearTimeout(backPressTimer.current);
+        import('@capacitor/app')
+          .then(({ App: CapApp }) => { CapApp.exitApp(); })
+          .catch(() => { if (window.history.length > 1) window.history.back(); });
+      } else {
+        backPressedOnce.current = true;
+        // Show "press again to exit" toast via a temporary DOM element
+        const toast = document.createElement('div');
+        toast.textContent = 'Press back again to exit';
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none;';
+        document.body.appendChild(toast);
+        backPressTimer.current = setTimeout(() => {
+          backPressedOnce.current = false;
+          if (document.body.contains(toast)) document.body.removeChild(toast);
+        }, 2500);
+      }
     }
   }, [currentView, activeTab, logout, setCurrentView]);
 
@@ -291,25 +294,9 @@ export const App: React.FC = () => {
     setCurrentView('calculator');
   };
 
-  useEffect(() => {
-    let listenerHandle: any = null;
-
-    import('@capacitor/app')
-      .then(({ App: CapApp }) => {
-        CapApp.addListener('appStateChange', ({ isActive }) => {
-          if (!isActive) {
-            handleSessionEnd();
-          }
-        }).then((handle) => {
-          listenerHandle = handle;
-        });
-      })
-      .catch(() => {});
-
-    return () => {
-      if (listenerHandle?.remove) listenerHandle.remove();
-    };
-  }, []);
+  // Fix: Do NOT logout on app background (appStateChange isActive=false).
+  // Only clear session on actual window unload (handled in AuthContext).
+  // This allows users to switch apps and come back without losing their session.
 
   return (
     <AuthProvider onSessionEnd={handleSessionEnd}>

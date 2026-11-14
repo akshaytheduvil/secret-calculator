@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api/client';
 import {
-  Menu, Copy, Camera, X, Clipboard
+  Menu, Copy, Camera, X, Clipboard, Clock
 } from 'lucide-react';
 import { parseBookingMessage } from '../../utils/smartPasteParser';
 
@@ -40,6 +40,10 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
 
   // Staged Table Items
   const [stagedItems, setStagedItems] = useState<StagedBookingItem[]>([]);
+
+  // Draw availability state
+  const [drawClosed, setDrawClosed] = useState(false);
+  const [drawClosedMessage, setDrawClosedMessage] = useState('');
 
   // Submissions & Feedback
   const [loading, setLoading] = useState(false);
@@ -352,36 +356,79 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
   // Paste from clipboard → parse → directly add to bill (no modal, no preview step)
   const handlePasteFromClipboard = async () => {
     setErrorMessage(null);
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text || !text.trim()) {
-        setErrorMessage('Clipboard is empty.');
-        return;
+
+    // Primary method: Web Clipboard API (works on modern browsers & some WebViews)
+    const tryWebClipboard = async (): Promise<string | null> => {
+      try {
+        if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+          const text = await navigator.clipboard.readText();
+          return text || null;
+        }
+      } catch {
+        // permission denied or not available
       }
-      const res = parseBookingMessage(text);
-      if (res.entries.length === 0) {
-        setErrorMessage('No valid booking entries found in clipboard.');
-        return;
-      }
-      const newEntries: StagedBookingItem[] = [];
-      for (const pe of res.entries) {
-        const pricing = getPriceForCategory(pe.lskCategory);
-        newEntries.push({
-          id: Math.random().toString(36).substring(7),
-          lskCategory: pe.lskCategory,
-          bookedNumber: pe.bookedNumber,
-          count: pe.count,
-          unitAmount: pricing.unit,
-          dAmount: Number((pe.count * pricing.d).toFixed(2)),
-          cAmount: Number((pe.count * pricing.c).toFixed(2))
-        });
-      }
-      setStagedItems((prev) => [...prev, ...newEntries]);
-      setCopyFeedback(`${res.entries.length} entries added`);
-      setTimeout(() => setCopyFeedback(null), 2500);
-    } catch {
-      setErrorMessage('Clipboard access denied. Grant permission and try again.');
+      return null;
+    };
+
+    // Fallback: Create a temporary hidden input, focus it, paste via execCommand
+    const tryInputFallback = (): Promise<string | null> => {
+      return new Promise((resolve) => {
+        const input = document.createElement('textarea');
+        input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(input);
+        input.focus();
+        try {
+          const success = document.execCommand('paste');
+          if (success && input.value) {
+            const val = input.value;
+            document.body.removeChild(input);
+            resolve(val);
+            return;
+          }
+        } catch {}
+        // Listen for paste event triggered by OS clipboard
+        const onPaste = (e: ClipboardEvent) => {
+          const text = e.clipboardData?.getData('text') || '';
+          document.body.removeChild(input);
+          resolve(text || null);
+        };
+        input.addEventListener('paste', onPaste, { once: true });
+        setTimeout(() => {
+          input.removeEventListener('paste', onPaste);
+          if (document.body.contains(input)) document.body.removeChild(input);
+          resolve(null);
+        }, 2000);
+      });
+    };
+
+    let text = await tryWebClipboard();
+    if (!text) text = await tryInputFallback();
+
+    if (!text || !text.trim()) {
+      setErrorMessage('Nothing in clipboard. Copy your booking message first.');
+      return;
     }
+    const res = parseBookingMessage(text);
+    if (res.entries.length === 0) {
+      setErrorMessage('No valid booking entries found in clipboard.');
+      return;
+    }
+    const newEntries: StagedBookingItem[] = [];
+    for (const pe of res.entries) {
+      const pricing = getPriceForCategory(pe.lskCategory);
+      newEntries.push({
+        id: Math.random().toString(36).substring(7),
+        lskCategory: pe.lskCategory,
+        bookedNumber: pe.bookedNumber,
+        count: pe.count,
+        unitAmount: pricing.unit,
+        dAmount: Number((pe.count * pricing.d).toFixed(2)),
+        cAmount: Number((pe.count * pricing.c).toFixed(2))
+      });
+    }
+    setStagedItems((prev) => [...prev, ...newEntries]);
+    setCopyFeedback(`${res.entries.length} entries added`);
+    setTimeout(() => setCopyFeedback(null), 2500);
   };
 
   // Submit Booking (Strict workflow: stage -> inspect -> submit -> persist -> bill number)
@@ -451,6 +498,30 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
   const themeBg = gameMeta.themeColor;
   const isRangeTypeMode = ['Range', 'Hundreds', 'Ones'].includes(bookMode);
 
+  // Check draw availability on mount and when game changes (re-check every 60s)
+  useEffect(() => {
+    const checkDraw = async () => {
+      try {
+        // Try a lightweight draw status check by attempting to get active draw info
+        // We use a HEAD-style ping — if booking throws DRAW_CLOSED, we know
+        await ApiClient.getDrawStatus(selectedGame);
+        setDrawClosed(false);
+        setDrawClosedMessage('');
+      } catch (err: any) {
+        const msg = err?.message || '';
+        if (msg.includes('DRAW_CLOSED') || msg.includes('closed')) {
+          setDrawClosed(true);
+          setDrawClosedMessage('Booking opens at 9:00 PM for the next draw.');
+        } else {
+          setDrawClosed(false);
+        }
+      }
+    };
+    checkDraw();
+    const interval = setInterval(checkDraw, 60000);
+    return () => clearInterval(interval);
+  }, [selectedGame]);
+
   return (
     <div className="min-h-screen bg-white flex flex-col justify-between max-w-md mx-auto relative select-none">
       {/* 1. Top Header */}
@@ -504,6 +575,20 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
           {copyFeedback}
         </div>
       )}
+
+      {/* Draw Closed — full-screen block when booking is unavailable */}
+      {drawClosed ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+            <Clock className="w-8 h-8 text-gray-400" />
+          </div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">Booking Unavailable</h2>
+          <p className="text-sm text-gray-500 mb-1">
+            Number booking for <strong>{selectedGame}</strong> is currently closed.
+          </p>
+          <p className="text-xs text-gray-400">{drawClosedMessage}</p>
+        </div>
+      ) : (<>
 
       {/* Success Bill Notification Modal */}
       {successBillNumber && (
@@ -892,6 +977,7 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
           {loading ? 'SUBMITTING...' : 'SUBMIT'}
         </button>
       </div>
+      </>) /* end drawClosed ternary */}
     </div>
   );
 };

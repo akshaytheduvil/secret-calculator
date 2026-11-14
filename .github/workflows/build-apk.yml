@@ -62,39 +62,22 @@ jobs:
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.6
-          name: "ApexBook Secret Calculator Android APK v1.1.6 (3-dot Edit/Delete + Direct Paste)"
+          tag_name: v1.1.7
+          name: "ApexBook Secret Calculator Android APK v1.1.7"
           files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           body: |
-            ### ApexBook Connected Application - Android APK v1.1.6
+            ### ApexBook Connected Application - Android APK v1.1.7
             Download and install the Android APK below.
 
-            - **Build Type:** Debug APK (demo & simulation only, strictly nonredeemable)
-            - **Version:** v1.1.6
+            - **Build Type:** Debug APK
+            - **Version:** v1.1.7
             - **Package ID:** `com.app.calculator`
-            - **App Name:** Calculator
-            - **New in v1.1.6:**
-              - **3-Dot Menu on Last Sale:** Each bill card now shows a ⋮ corner menu (always visible). Tap it to get Edit and Delete options — no draw-lock restriction on the UI (backend still enforces cutoff).
-              - **Direct Smart Paste:** Clipboard Paste button now instantly reads clipboard and adds entries straight to the bill — no modal, no preview, no extra step. Shows toast feedback ("N entries added").
-              - **Removed Last Sale from Booking Screen:** Last Sale section no longer appears inside Number Booking. Use the dedicated Last Sale screen from the menu instead.
-            - **Centralized Cloud Backend Architecture:**
-              - Auto-connected to Central Cloud Backend: `https://apexbook-backend.onrender.com/api`
-              - Independent 24/7 cloud connectivity (Zero reliance on host PC or local network)
-              - Supports any Wi-Fi network and mobile cellular data (4G/5G) worldwide
-              - Automatic cold-start retry mechanism for seamless connection
-              - Clean, zero-configuration login screen: Username, Password, Login button
-            - **Secret Camouflage Triggers:**
-              - Arithmetic Trigger: `11 + 22 =`
-              - Invisible Corner Trigger: 5 rapid taps on the top-left corner
-            - **Default Cloud Demo Accounts (Central Database):**
-              - Subdealer: `test` / `test`
-              - Agent: `agent` / `agent`
-              - Admin: `admin` / `admin`
-            - **Core Features Verified:**
-              - 5 Booking Modes: Book, Range, Set, Hundreds, Ones
-              - WhatsApp Smart Paste parser — direct to bill with toast feedback
-              - Centralized Cloud PostgreSQL Database synchronization
-              - Real-time Today Report for DR1, KL, DR6, DR8
-              - Role-based permissions and hierarchical security
+            - **New in v1.1.7:**
+              - **Draw Closing Times (10 min before draw):** DR1 → 12:50 PM · KL → 2:50 PM · DR6 → 5:50 PM · DR8 → 7:50 PM
+              - **Next-Day Booking Opens at 9 PM:** After close, booking for the next draw opens at 9:00 PM IST
+              - **Booking Unavailable Screen:** When closed, Number Booking shows a clear "Booking Unavailable — opens at 9 PM" screen instead of the form
+              - **Fixed App Resume:** Switching to another app and coming back no longer logs you out or resets to the calculator screen
+              - **Double Back to Exit:** First back press shows "Press back again to exit" toast; second press exits the app
+              - **Smart Paste Improved:** Clipboard paste now works on Android without showing permission error — uses native fallback automatically
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

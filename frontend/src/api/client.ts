@@ -298,6 +298,11 @@ export class ApiClient {
       body: JSON.stringify(data)
     });
   }
+
+  // Check draw status for a game (throws if closed/unavailable)
+  static getDrawStatus(gameCode: string) {
+    return this.request(`/booking/draw-status/${gameCode}`);
+  }
 }
 
 type stringPlain = string;

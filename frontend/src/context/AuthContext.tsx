@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { ApiClient } from '../api/client';
 
 export interface User {
@@ -57,25 +57,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onSessionEnd: (
     }
   };
 
-  // Mandatory Automatic Logout on window unload / close / hide
-  useEffect(() => {
-    const handleUnloadOrHide = () => {
-      const token = ApiClient.getToken();
-      if (token) {
-        // Send beacon to invalidate session on server
-        navigator.sendBeacon('/api/auth/logout');
-      }
-      ApiClient.clearToken();
-      setUser(null);
-      setDealerConfig(null);
-    };
-
-    window.addEventListener('beforeunload', handleUnloadOrHide);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleUnloadOrHide);
-    };
-  }, []);
+  // Note: We intentionally do NOT auto-logout on beforeunload/visibilitychange
+  // because on Android, switching apps triggers these events and would log out the user.
+  // Session is managed explicitly: logout() on manual signout, App.tsx handles appStateChange.
 
   return (
     <AuthContext.Provider
