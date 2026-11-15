@@ -453,166 +453,235 @@ export const ManageSubDealer: React.FC<ManageSubDealerProps> = ({ onBack }) => {
         </main>
       )}
 
-      {/* 3. Set Ticket Price (PDF 3 Page 8-9) */}
-      {currentSubView === 'ticket_price' && (
-        <main className="p-4 space-y-4 flex-1">
-          <div className="border border-gray-200 rounded p-4 space-y-4 bg-white">
-            <h2 className="text-sm font-semibold text-gray-700">Set Ticket Price</h2>
+      {/* 3. Set Ticket Price */}
+      {currentSubView === 'ticket_price' && (() => {
+        const selectedDealer = subDealers.find((d) => d.username === selectedUser);
+        const existingPrices = selectedDealer?.custom_prices;
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">User</label>
-              <select
-                value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
-              >
-                <option value="">Please select</option>
-                {subDealers.map((d) => (
-                  <option key={d.id} value={d.username}>
-                    {d.username}
-                  </option>
-                ))}
-              </select>
-            </div>
+        // Prefill from existing dealer config when user changes
+        const handleUserChange = (uname: string) => {
+          setSelectedUser(uname);
+          const d = subDealers.find((x) => x.username === uname);
+          if (d?.custom_prices) {
+            setSinglePrice(String(d.custom_prices.one_digit?.d ?? '12'));
+            setDoublePrice(String(d.custom_prices.two_digit?.d ?? '10'));
+            setTriplePrice(String(d.custom_prices.three_digit?.d ?? '10'));
+          }
+        };
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Game</label>
-              <select
-                value={selectedGameCode}
-                onChange={(e) => setSelectedGameCode(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
-              >
-                <option value="DR1">DR 1</option>
-                <option value="KL">KL</option>
-                <option value="DR6">DR 6</option>
-                <option value="DR8">DR 8</option>
-              </select>
-            </div>
+        const handleSaveTicketPrice = async () => {
+          if (!selectedUser) { alert('Please select a sub dealer'); return; }
+          const dealer = subDealers.find((d) => d.username === selectedUser);
+          if (!dealer) { alert('Sub dealer not found'); return; }
+          try {
+            const existing = dealer.custom_prices || {};
+            await ApiClient.updateSubDealer(dealer.id, {
+              customPrices: {
+                three_digit: { c: existing.three_digit?.c ?? 10, d: Number(triplePrice) },
+                two_digit: { c: existing.two_digit?.c ?? 10, d: Number(doublePrice) },
+                one_digit: { c: existing.one_digit?.c ?? 12, d: Number(singlePrice) }
+              }
+            });
+            await fetchSubDealers();
+            setMessage('Ticket prices saved successfully');
+            setTimeout(() => setMessage(null), 2500);
+          } catch (err: any) {
+            alert(err.message || 'Failed to save ticket price');
+          }
+        };
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Single No. Price</label>
-              <input
-                type="text"
-                value={singlePrice}
-                onChange={(e) => setSinglePrice(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
-              />
-            </div>
+        return (
+          <main className="p-4 space-y-4 flex-1">
+            <div className="border border-gray-200 rounded p-4 space-y-4 bg-white">
+              <h2 className="text-sm font-semibold text-gray-700">Set Ticket Price</h2>
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Double No. Price</label>
-              <input
-                type="text"
-                value={doublePrice}
-                onChange={(e) => setDoublePrice(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Triple No. Price</label>
-              <input
-                type="text"
-                value={triplePrice}
-                onChange={(e) => setTriplePrice(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleSaveGeneric}
-                className="bg-[#1976d2] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2 rounded-sm uppercase tracking-wider"
-              >
-                SAVE
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentSubView('menu')}
-                className="bg-[#e0e0e0] hover:bg-gray-300 text-gray-800 font-semibold text-xs px-4 py-2 rounded-sm"
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        </main>
-      )}
-
-      {/* 4. Set DC (PDF 3 Page 10-11) */}
-      {currentSubView === 'dc' && (
-        <main className="p-4 space-y-4 flex-1">
-          <div className="border border-gray-200 rounded p-4 space-y-4 bg-white">
-            <h2 className="text-sm font-semibold text-gray-700">Set DC</h2>
-
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Game</label>
-              <select
-                value={selectedGameCode}
-                onChange={(e) => setSelectedGameCode(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
-              >
-                <option value="DR1">DR 1</option>
-                <option value="KL">KL</option>
-                <option value="DR6">DR 6</option>
-                <option value="DR8">DR 8</option>
-              </select>
-            </div>
-
-            <div>
-              <h3 className="text-xs font-semibold text-gray-700 mb-2">Set Zero DC</h3>
-              <table className="w-full text-center border border-gray-300 text-[10px] border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-300 text-gray-700">
-                    <th className="py-1 px-1 border-r border-gray-300">Result Type</th>
-                    <th className="py-1 px-1 border-r border-gray-300">Category</th>
-                    <th className="py-1 px-1">DC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dcTable.map((row, idx) => (
-                    <tr key={idx} className="border-b border-gray-200">
-                      <td className="py-1 px-1 border-r border-gray-200 text-left pl-2">
-                        {row.resultType}
-                      </td>
-                      <td className="py-1 px-1 border-r border-gray-200">{row.category}</td>
-                      <td className="py-1 px-1">
-                        <input
-                          type="text"
-                          value={row.dc}
-                          onChange={(e) => {
-                            const updated = [...dcTable];
-                            updated[idx].dc = e.target.value;
-                            setDcTable(updated);
-                          }}
-                          className="w-14 text-center border border-gray-200 rounded py-0.5"
-                        />
-                      </td>
-                    </tr>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">User</label>
+                <select
+                  value={selectedUser}
+                  onChange={(e) => handleUserChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+                >
+                  <option value="">Please select</option>
+                  {subDealers.map((d) => (
+                    <option key={d.id} value={d.username}>{d.username}</option>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </select>
+              </div>
 
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleSaveGeneric}
-                className="bg-[#1976d2] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2 rounded-sm uppercase tracking-wider"
-              >
-                SAVE
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentSubView('menu')}
-                className="bg-[#e0e0e0] hover:bg-gray-300 text-gray-800 font-semibold text-xs px-4 py-2 rounded-sm"
-              >
-                Back
-              </button>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Game</label>
+                <select
+                  value={selectedGameCode}
+                  onChange={(e) => setSelectedGameCode(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+                >
+                  <option value="DR1">DR 1</option>
+                  <option value="KL">KL</option>
+                  <option value="DR6">DR 6</option>
+                  <option value="DR8">DR 8</option>
+                </select>
+              </div>
+
+              {selectedDealer && existingPrices && (
+                <div className="bg-blue-50 rounded p-2 text-[10px] text-blue-700">
+                  Current: 3-digit ₹{existingPrices.three_digit?.d} | 2-digit ₹{existingPrices.two_digit?.d} | 1-digit ₹{existingPrices.one_digit?.d}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">1 Digit (A/B/C) D-Price</label>
+                <input type="number" step="0.01" value={singlePrice} onChange={(e) => setSinglePrice(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black" />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">2 Digit (AB/BC/AC) D-Price</label>
+                <input type="number" step="0.01" value={doublePrice} onChange={(e) => setDoublePrice(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black" />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">3 Digit (SUPER/BOX) D-Price</label>
+                <input type="number" step="0.01" value={triplePrice} onChange={(e) => setTriplePrice(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black" />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button type="button" onClick={handleSaveTicketPrice}
+                  className="bg-[#1976d2] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2 rounded-sm uppercase tracking-wider">
+                  SAVE
+                </button>
+                <button type="button" onClick={() => setCurrentSubView('menu')}
+                  className="bg-[#e0e0e0] hover:bg-gray-300 text-gray-800 font-semibold text-xs px-4 py-2 rounded-sm">
+                  Back
+                </button>
+              </div>
             </div>
-          </div>
-        </main>
-      )}
+          </main>
+        );
+      })()}
+
+      {/* 4. Set DC */}
+      {currentSubView === 'dc' && (() => {
+        const selectedDealer = subDealers.find((d) => d.username === selectedUser);
+
+        const handleUserChangeForDC = (uname: string) => {
+          setSelectedUser(uname);
+          const d = subDealers.find((x) => x.username === uname);
+          if (d?.winning_commission_dc != null) {
+            const baseVal = String(d.winning_commission_dc);
+            setDcTable([
+              { resultType: 'First Price', category: 'SUPER', dc: baseVal },
+              { resultType: 'First Price', category: 'BOX', dc: String(Number(d.winning_commission_dc) * 0.6) },
+              { resultType: 'First Price', category: '2 Digit', dc: String(Number(d.winning_commission_dc) * 0.1) },
+              { resultType: 'First Price', category: '1 Digit', dc: String(Number(d.winning_commission_dc) * 0.05) },
+              { resultType: 'Second Price', category: 'SUPER', dc: String(Number(d.winning_commission_dc) * 0.1) },
+              { resultType: 'Third Price', category: 'SUPER', dc: String(Number(d.winning_commission_dc) * 0.05) },
+              { resultType: 'Fourth Price', category: 'SUPER', dc: String(Number(d.winning_commission_dc) * 0.05) },
+              { resultType: 'Fifth Price', category: 'SUPER', dc: String(Number(d.winning_commission_dc) * 0.05) },
+              { resultType: 'Complementary', category: 'SUPER', dc: '0' }
+            ]);
+          }
+        };
+
+        const handleSaveDC = async () => {
+          if (!selectedUser) { alert('Please select a sub dealer'); return; }
+          const dealer = subDealers.find((d) => d.username === selectedUser);
+          if (!dealer) { alert('Sub dealer not found'); return; }
+          try {
+            // Save SUPER First Prize DC as the main winning_commission_dc
+            const superDC = Number(dcTable[0]?.dc || 0);
+            await ApiClient.updateSubDealer(dealer.id, { dc: superDC });
+            await fetchSubDealers();
+            setMessage('DC saved successfully');
+            setTimeout(() => setMessage(null), 2500);
+          } catch (err: any) {
+            alert(err.message || 'Failed to save DC');
+          }
+        };
+
+        return (
+          <main className="p-4 space-y-4 flex-1">
+            <div className="border border-gray-200 rounded p-4 space-y-4 bg-white">
+              <h2 className="text-sm font-semibold text-gray-700">Set DC</h2>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Sub Dealer</label>
+                <select
+                  value={selectedUser}
+                  onChange={(e) => handleUserChangeForDC(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+                >
+                  <option value="">Please select</option>
+                  {subDealers.map((d) => (
+                    <option key={d.id} value={d.username}>{d.username}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedDealer && (
+                <div className="bg-blue-50 rounded p-2 text-[10px] text-blue-700">
+                  Current DC (SUPER): ₹{selectedDealer.winning_commission_dc ?? 0}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Game</label>
+                <select value={selectedGameCode} onChange={(e) => setSelectedGameCode(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black">
+                  <option value="DR1">DR 1</option>
+                  <option value="KL">KL</option>
+                  <option value="DR6">DR 6</option>
+                  <option value="DR8">DR 8</option>
+                </select>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold text-gray-700 mb-2">Set DC Values</h3>
+                <table className="w-full text-center border border-gray-300 text-[10px] border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-300 text-gray-700">
+                      <th className="py-1 px-1 border-r border-gray-300 text-left pl-2">Result Type</th>
+                      <th className="py-1 px-1 border-r border-gray-300">Category</th>
+                      <th className="py-1 px-1">DC (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dcTable.map((row, idx) => (
+                      <tr key={idx} className="border-b border-gray-200">
+                        <td className="py-1 px-1 border-r border-gray-200 text-left pl-2">{row.resultType}</td>
+                        <td className="py-1 px-1 border-r border-gray-200">{row.category}</td>
+                        <td className="py-1 px-1">
+                          <input type="number" step="0.01" value={row.dc}
+                            onChange={(e) => {
+                              const updated = [...dcTable];
+                              updated[idx].dc = e.target.value;
+                              setDcTable(updated);
+                            }}
+                            className="w-16 text-center border border-gray-200 rounded py-0.5" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[9px] text-gray-400 mt-1">* First Price SUPER DC is saved as main DC for the dealer</p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button type="button" onClick={handleSaveDC}
+                  className="bg-[#1976d2] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2 rounded-sm uppercase tracking-wider">
+                  SAVE
+                </button>
+                <button type="button" onClick={() => setCurrentSubView('menu')}
+                  className="bg-[#e0e0e0] hover:bg-gray-300 text-gray-800 font-semibold text-xs px-4 py-2 rounded-sm">
+                  Back
+                </button>
+              </div>
+            </div>
+          </main>
+        );
+      })()}
 
       {/* 5. Set Booking Number Count (PDF 3 Page 12-15) */}
       {currentSubView === 'number_count' && (
