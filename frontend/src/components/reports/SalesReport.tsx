@@ -201,32 +201,90 @@ export const SalesReport: React.FC<SalesReportProps> = ({ onBack }) => {
         </main>
       )}
 
-      {/* State B: Report Table View — flat table matching design reference */}
+      {/* State B: Report Table View */}
       {viewState === 'report' && (() => {
-        const bills = (reportData?.records || reportData?.bills || []).filter((bill: any) => {
-          if (!numberFilter) return true;
-          const rawItems = bill.items || [];
-          return rawItems.some((it: any) => (it.bookedNumber || it.booked_number || '').includes(numberFilter));
-        });
+        const isDetailed = reportData?.mode === 'detailed';
+        const allRecords: any[] = reportData?.records || reportData?.bills || [];
 
-        const totalCount = bills.reduce((s: number, b: any) => s + (Number(b.total_count) || 0), 0);
-        const totalD = bills.reduce((s: number, b: any) => s + (Number(b.total_d_amount) || 0), 0);
-        const totalC = bills.reduce((s: number, b: any) => s + (Number(b.total_c_amount) || 0), 0);
+        // Filter by number for detailed mode
+        const records = isDetailed && numberFilter
+          ? allRecords.filter((r: any) => (r.booked_number || '').includes(numberFilter))
+          : !isDetailed
+            ? allRecords.filter((bill: any) => {
+                if (!numberFilter) return true;
+                return (bill.items || []).some((it: any) =>
+                  (it.bookedNumber || it.booked_number || '').includes(numberFilter)
+                );
+              })
+            : allRecords;
 
-        const fmtDate = (b: any) => {
-          if (!b.created_at) return b.draw_date || '-';
-          const d = new Date(b.created_at);
-          const yy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          const hh = String(d.getHours()).padStart(2, '0');
-          const min = String(d.getMinutes()).padStart(2, '0');
-          return `${yy}-${mm}-${dd} ${hh}:${min}`;
+        const fmtDate = (r: any) => {
+          if (!r.created_at) return r.draw_date || '-';
+          const d = new Date(r.created_at);
+          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
         };
+
+        if (isDetailed) {
+          // ── FULL VIEW: one row per bill_item ──
+          const totalD = records.reduce((s: number, r: any) => s + Number(r.total_d_amount || 0), 0);
+          const totalC = records.reduce((s: number, r: any) => s + Number(r.total_c_amount || 0), 0);
+          const totalCnt = records.reduce((s: number, r: any) => s + Number(r.count || 0), 0);
+
+          return (
+            <main className="flex-1 overflow-x-auto pb-10">
+              {records.length === 0 ? (
+                <div className="py-16 text-center text-gray-400 text-xs">No records found</div>
+              ) : (
+                <table className="w-full border-collapse text-[10px]" style={{ minWidth: 360 }}>
+                  <thead>
+                    <tr className="bg-[#e4e6ea] text-gray-800 font-bold text-[9px] border-b-2 border-gray-300">
+                      <th className="py-2 px-1 text-left pl-2">DATE</th>
+                      <th className="py-2 px-1">DEALER</th>
+                      <th className="py-2 px-1">LSK</th>
+                      <th className="py-2 px-1">NUMBER</th>
+                      <th className="py-2 px-1">CNT</th>
+                      <th className="py-2 px-1">D.AMT</th>
+                      <th className="py-2 px-1">C.AMT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records.map((r: any, idx: number) => (
+                      <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="py-1.5 px-1 pl-2 text-left text-gray-700 whitespace-nowrap">{fmtDate(r)}</td>
+                        <td className="py-1.5 px-1 text-center text-gray-800 font-medium">{r.dealer || '-'}</td>
+                        <td className="py-1.5 px-1 text-center font-semibold uppercase">{r.lsk_category}</td>
+                        <td className="py-1.5 px-1 text-center font-mono font-bold">
+                          <div>{r.booked_number}</div>
+                          <div className="text-[9px] text-gray-400">({r.game_code} {r.customer_name})</div>
+                        </td>
+                        <td className="py-1.5 px-1 text-center font-bold">{r.count}</td>
+                        <td className="py-1.5 px-1 text-center font-mono text-gray-700">₹{Number(r.total_d_amount || 0).toFixed(0)}</td>
+                        <td className="py-1.5 px-1 text-center font-mono font-bold">₹{Number(r.total_c_amount || 0).toFixed(0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-[#e4e6ea] font-bold text-[10px] border-t-2 border-gray-400">
+                      <td className="py-2 px-1 pl-2 text-left text-gray-700" colSpan={4}>TOTAL</td>
+                      <td className="py-2 px-1 text-center">{totalCnt}</td>
+                      <td className="py-2 px-1 text-center font-mono">₹{totalD.toFixed(0)}</td>
+                      <td className="py-2 px-1 text-center font-mono">₹{totalC.toFixed(0)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </main>
+          );
+        }
+
+        // ── SUMMARY VIEW: one row per bill ──
+        const totalCount = records.reduce((s: number, b: any) => s + (Number(b.total_count) || 0), 0);
+        const totalD = records.reduce((s: number, b: any) => s + (Number(b.total_d_amount) || 0), 0);
+        const totalC = records.reduce((s: number, b: any) => s + (Number(b.total_c_amount) || 0), 0);
 
         return (
           <main className="flex-1 overflow-x-auto pb-10">
-            {bills.length === 0 ? (
+            {records.length === 0 ? (
               <div className="py-16 text-center text-gray-400 text-xs">
                 No sales records found for selected criteria
               </div>
@@ -243,13 +301,13 @@ export const SalesReport: React.FC<SalesReportProps> = ({ onBack }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {bills.map((bill: any) => (
+                  {records.map((bill: any) => (
                     <tr key={bill.id || bill.bill_number} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="py-1.5 px-1 pl-2 text-left text-gray-700 whitespace-nowrap">
                         {fmtDate(bill)}
                       </td>
                       <td className="py-1.5 px-1 text-center text-gray-800 font-medium">
-                        {bill.username_snapshot || bill.dealer || 'Qq'}
+                        {bill.username_snapshot || bill.dealer || '-'}
                       </td>
                       <td className="py-1.5 px-1 text-center font-mono">
                         <div className="font-bold text-gray-900">{bill.bill_number}</div>

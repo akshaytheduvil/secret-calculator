@@ -180,7 +180,7 @@ export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
         </main>
       )}
 
-      {/* State B: Report Table View (PDF 2 Page 5 Top) */}
+      {/* State B: Report Table View */}
       {viewState === 'report' && (
         <div className="flex-1 flex flex-col justify-between">
           <main className="flex-1 overflow-x-auto pb-16">
@@ -203,24 +203,39 @@ export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
                     </td>
                   </tr>
                 ) : (
-                  records.map((rec) => (
-                    <tr key={rec.id} className="border-b border-gray-200 text-gray-800 hover:bg-gray-50">
-                      <td className="py-1.5 px-1 text-left pl-3">
-                        {rec.date || rec.draw_date || (rec.created_at ? new Date(rec.created_at).toLocaleDateString() : '-')}
-                      </td>
-                      <td className="py-1.5 px-1 font-semibold">{rec.game || rec.game_code}</td>
-                      <td className="py-1.5 px-1 font-mono font-bold">{rec.winning_number}</td>
-                      <td className="py-1.5 px-1">{rec.customer_name || 'Retail'}</td>
-                      <td className="py-1.5 px-1 font-mono">{rec.lsk_category || rec.prize_name || 'SUPER'}</td>
-                      <td className="py-1.5 px-1 font-mono font-bold">₹ {rec.winning_prize_amount ?? rec.prize_amount ?? 0}</td>
-                    </tr>
-                  ))
+                  records.map((rec) => {
+                    const prize = Number(rec.winning_prize_amount ?? rec.prize_amount ?? 0);
+                    const dc = Number(rec.dc ?? 0);
+                    const total = prize + dc;
+                    return (
+                      <tr key={rec.id} className="border-b border-gray-200 text-gray-800 hover:bg-gray-50">
+                        <td className="py-1.5 px-1 text-left pl-3">
+                          {rec.date || rec.draw_date || (rec.created_at ? new Date(rec.created_at).toLocaleDateString() : '-')}
+                        </td>
+                        <td className="py-1.5 px-1 font-semibold">{rec.game || rec.game_code}</td>
+                        <td className="py-1.5 px-1 font-mono font-bold">{rec.winning_number}</td>
+                        <td className="py-1.5 px-1">{rec.customer_name || 'Retail'}</td>
+                        <td className="py-1.5 px-1 font-mono">{rec.lsk_category || rec.prize_name || 'SUPER'}</td>
+                        <td className="py-1.5 px-1 font-mono text-right pr-2">
+                          <div className="font-bold text-gray-900">₹ {prize}</div>
+                          {dc > 0 && (
+                            <div className="text-[9px] text-blue-600 font-semibold">DC: ₹ {dc}</div>
+                          )}
+                          {dc > 0 && (
+                            <div className="text-[9px] text-green-700 font-bold border-t border-gray-300 pt-0.5 mt-0.5">
+                              = ₹ {total}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </main>
 
-          {/* Bottom Summary Bar matching reference screenshot */}
+          {/* Bottom Summary Bar */}
           <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#e4e6ea] border-t border-gray-300 py-1.5 px-2 grid grid-cols-4 text-center divide-x divide-gray-300 z-20 text-[10px]">
             <div>
               <span className="block text-[8px] font-semibold text-gray-500 uppercase">COUNT</span>
@@ -228,15 +243,15 @@ export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
             </div>
             <div>
               <span className="block text-[8px] font-semibold text-gray-500 uppercase">DC</span>
-              <strong className="text-black">{summary.totalDC || 0}</strong>
+              <strong className="text-black">₹ {summary.totalDC || 0}</strong>
             </div>
             <div>
-              <span className="block text-[8px] font-semibold text-gray-500 uppercase">PRICE</span>
+              <span className="block text-[8px] font-semibold text-gray-500 uppercase">PRIZE</span>
               <strong className="text-black">₹ {summary.totalPrize || 0}</strong>
             </div>
             <div>
               <span className="block text-[8px] font-semibold text-gray-500 uppercase">TOTAL</span>
-              <strong className="text-black">₹ {summary.totalPrize || 0}</strong>
+              <strong className="text-black">₹ {(Number(summary.totalPrize || 0) + Number(summary.totalDC || 0))}</strong>
             </div>
           </div>
         </div>

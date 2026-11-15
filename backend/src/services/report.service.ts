@@ -99,13 +99,13 @@ export class ReportService {
     }
 
     if (filter.fullView) {
-      // Full View ON: Detailed records
-      // Shows: Booking Number, LSK Category, Count, Dealer, Bill Number
-      // Explicitly hides: Customer Amount, Dealer Amount
+      // Full View ON: Detailed item records with pricing
       const sql = `
         SELECT bi.booked_number, bi.lsk_category, bi.count,
+               bi.unit_c_price, bi.unit_d_price,
+               bi.total_c_amount, bi.total_d_amount,
                COALESCE(u.username, b.username_snapshot) AS dealer,
-               b.bill_number, b.game_code, b.draw_date::text, b.customer_name
+               b.bill_number, b.game_code, b.draw_date::text, b.customer_name, b.created_at
         FROM bill_items bi
         JOIN bills b ON bi.bill_id = b.id
         LEFT JOIN users u ON b.user_id = u.id
