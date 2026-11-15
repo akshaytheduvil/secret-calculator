@@ -62,22 +62,20 @@ jobs:
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.7
-          name: "ApexBook Secret Calculator Android APK v1.1.7"
+          tag_name: v1.1.8
+          name: "ApexBook Secret Calculator Android APK v1.1.8"
           files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           body: |
-            ### ApexBook Connected Application - Android APK v1.1.7
+            ### ApexBook Connected Application - Android APK v1.1.8
             Download and install the Android APK below.
 
             - **Build Type:** Debug APK
-            - **Version:** v1.1.7
+            - **Version:** v1.1.8
             - **Package ID:** `com.app.calculator`
-            - **New in v1.1.7:**
-              - **Draw Closing Times (10 min before draw):** DR1 → 12:50 PM · KL → 2:50 PM · DR6 → 5:50 PM · DR8 → 7:50 PM
-              - **Next-Day Booking Opens at 9 PM:** After close, booking for the next draw opens at 9:00 PM IST
-              - **Booking Unavailable Screen:** When closed, Number Booking shows a clear "Booking Unavailable — opens at 9 PM" screen instead of the form
-              - **Fixed App Resume:** Switching to another app and coming back no longer logs you out or resets to the calculator screen
-              - **Double Back to Exit:** First back press shows "Press back again to exit" toast; second press exits the app
-              - **Smart Paste Improved:** Clipboard paste now works on Android without showing permission error — uses native fallback automatically
+            - **New in v1.1.8:**
+              - **Sale Report Redesigned:** Flat table layout (DATE | DEALER | BILL NO | BILL COUNT | D.AMOUNT | C.AMOUNT) with TOTAL row — matches exact design reference
+              - **6-Digit Bill Numbers:** All new bills get clean 6-digit numbers (100000–999999)
+              - **Bill No + Customer Name:** Bill number now shows game code and customer name in brackets everywhere (LastSale, SalesReport)
+              - **Paste Fix:** Paste button now opens a bottom-sheet text area — long-press and paste inside; works on all Android versions without clipboard permission errors
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

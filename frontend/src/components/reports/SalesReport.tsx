@@ -201,95 +201,88 @@ export const SalesReport: React.FC<SalesReportProps> = ({ onBack }) => {
         </main>
       )}
 
-      {/* State B: Report Table View (PDF 2 Page 3 Top) */}
-      {viewState === 'report' && (
-        <main className="flex-1 overflow-x-auto pb-10">
-          {!reportData || (!reportData.records && !reportData.bills) || (reportData.records || reportData.bills).length === 0 ? (
-            <div className="py-16 text-center text-gray-400 text-xs">
-              No sales records found for selected criteria
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {(reportData.records || reportData.bills).map((bill: any) => {
-                // Filter items by number if specified
-                const rawItems = bill.items || [];
-                const filteredItems = numberFilter
-                  ? rawItems.filter((it: any) => (it.bookedNumber || it.booked_number || '').includes(numberFilter))
-                  : rawItems;
+      {/* State B: Report Table View — flat table matching design reference */}
+      {viewState === 'report' && (() => {
+        const bills = (reportData?.records || reportData?.bills || []).filter((bill: any) => {
+          if (!numberFilter) return true;
+          const rawItems = bill.items || [];
+          return rawItems.some((it: any) => (it.bookedNumber || it.booked_number || '').includes(numberFilter));
+        });
 
-                if (numberFilter && filteredItems.length === 0) return null;
+        const totalCount = bills.reduce((s: number, b: any) => s + (Number(b.total_count) || 0), 0);
+        const totalD = bills.reduce((s: number, b: any) => s + (Number(b.total_d_amount) || 0), 0);
+        const totalC = bills.reduce((s: number, b: any) => s + (Number(b.total_c_amount) || 0), 0);
 
-                return (
-                  <div key={bill.id || bill.bill_number} className="border-b border-gray-200">
-                    {/* Bill Header Row */}
-                    <div className="bg-[#e4e6ea] px-2 py-1.5 grid grid-cols-6 text-[10px] font-bold text-gray-800 text-center">
-                      <div className="col-span-1 text-left truncate">
-                        <span className="block text-[8px] text-gray-500">DATE</span>
-                        {bill.draw_date || (bill.created_at ? new Date(bill.created_at).toLocaleDateString() : '-')}
-                      </div>
-                      <div className="col-span-1 text-left truncate">
-                        <span className="block text-[8px] text-gray-500">DEALER</span>
-                        {bill.dealer || bill.customer_name || 'Retail'}
-                      </div>
-                      <div className="col-span-1">
-                        <span className="block text-[8px] text-gray-500">BILL NO</span>
-                        {bill.bill_number}
-                      </div>
-                      <div className="col-span-1">
-                        <span className="block text-[8px] text-gray-500">BILL COUNT</span>
+        const fmtDate = (b: any) => {
+          if (!b.created_at) return b.draw_date || '-';
+          const d = new Date(b.created_at);
+          const yy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const hh = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          return `${yy}-${mm}-${dd} ${hh}:${min}`;
+        };
+
+        return (
+          <main className="flex-1 overflow-x-auto pb-10">
+            {bills.length === 0 ? (
+              <div className="py-16 text-center text-gray-400 text-xs">
+                No sales records found for selected criteria
+              </div>
+            ) : (
+              <table className="w-full border-collapse text-[10px]" style={{ minWidth: 340 }}>
+                <thead>
+                  <tr className="bg-[#e4e6ea] text-gray-800 font-bold text-[9px] border-b-2 border-gray-300">
+                    <th className="py-2 px-1 text-left pl-2 font-semibold">DATE</th>
+                    <th className="py-2 px-1 font-semibold">DEALER</th>
+                    <th className="py-2 px-1 font-semibold">BILL NO</th>
+                    <th className="py-2 px-1 font-semibold">BILL COUNT</th>
+                    <th className="py-2 px-1 font-semibold">D.AMOUNT</th>
+                    <th className="py-2 px-1 font-semibold">C.AMOUNT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bills.map((bill: any) => (
+                    <tr key={bill.id || bill.bill_number} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="py-1.5 px-1 pl-2 text-left text-gray-700 whitespace-nowrap">
+                        {fmtDate(bill)}
+                      </td>
+                      <td className="py-1.5 px-1 text-center text-gray-800 font-medium">
+                        {bill.username_snapshot || bill.dealer || 'Qq'}
+                      </td>
+                      <td className="py-1.5 px-1 text-center font-mono">
+                        <div className="font-bold text-gray-900">{bill.bill_number}</div>
+                        <div className="text-[9px] text-gray-500">
+                          ({bill.game_code || ''} {bill.customer_name || ''})
+                        </div>
+                      </td>
+                      <td className="py-1.5 px-1 text-center font-bold text-gray-800">
                         {bill.total_count}
-                      </div>
-                      <div className="col-span-1">
-                        <span className="block text-[8px] text-gray-500">D.AMOUNT</span>
-                        ₹{bill.total_d_amount || (bill.total_count * 8.5).toFixed(1)}
-                      </div>
-                      <div className="col-span-1">
-                        <span className="block text-[8px] text-gray-500">C.AMOUNT</span>
-                        ₹{bill.total_c_amount || (bill.total_count * 10)}
-                      </div>
-                    </div>
-
-                    {/* Sub-Items Table */}
-                    <table className="w-full text-center border-collapse text-[10px]">
-                      <thead>
-                        <tr className="bg-gray-100 text-gray-600 border-b border-gray-200 text-[9px]">
-                          <th className="py-1 px-1 font-semibold text-left pl-3">LSK</th>
-                          <th className="py-1 px-1 font-semibold">NUMBER</th>
-                          <th className="py-1 px-1 font-semibold">COUNT</th>
-                          <th className="py-1 px-1 font-semibold">AMOUNT</th>
-                          <th className="py-1 px-1 font-semibold">D.AMOUNT</th>
-                          <th className="py-1 px-1 font-semibold">C.AMOUNT</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredItems.map((item: any, idx: number) => {
-                          const lskCat = item.lskCategory || item.lsk_category || 'SUPER';
-                          const bookedNum = item.bookedNumber || item.booked_number;
-                          const cnt = item.count || 1;
-                          const unitPrice = ['A', 'B', 'C'].includes(lskCat) ? 12 : 10;
-                          const dPrice = ['A', 'B', 'C'].includes(lskCat) ? 10.9 : 8.5;
-                          return (
-                            <tr key={idx} className="border-b border-gray-100 text-gray-700">
-                              <td className="py-1 px-1 text-left pl-3 font-semibold uppercase">
-                                {lskCat}
-                              </td>
-                              <td className="py-1 px-1 font-mono">{bookedNum}</td>
-                              <td className="py-1 px-1">{cnt}</td>
-                              <td className="py-1 px-1 font-mono">₹ {unitPrice}</td>
-                              <td className="py-1 px-1 font-mono">₹ {(cnt * dPrice).toFixed(2)}</td>
-                              <td className="py-1 px-1 font-mono">₹ {(cnt * unitPrice).toFixed(0)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </main>
-      )}
+                      </td>
+                      <td className="py-1.5 px-1 text-center font-mono text-gray-700">
+                        ₹ {Number(bill.total_d_amount || 0).toFixed(0)}
+                      </td>
+                      <td className="py-1.5 px-1 text-center font-mono font-bold text-gray-900">
+                        ₹ {Number(bill.total_c_amount || 0).toFixed(0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-[#e4e6ea] font-bold text-[10px] border-t-2 border-gray-400">
+                    <td className="py-2 px-1 pl-2 text-left text-gray-700" colSpan={2}>TOTAL</td>
+                    <td className="py-2 px-1 text-center text-gray-700">—</td>
+                    <td className="py-2 px-1 text-center text-gray-900">{totalCount}</td>
+                    <td className="py-2 px-1 text-center font-mono text-gray-900">₹ {totalD.toFixed(0)}</td>
+                    <td className="py-2 px-1 text-center font-mono text-gray-900">₹ {totalC.toFixed(0)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </main>
+        );
+      })()}
     </div>
   );
 };

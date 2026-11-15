@@ -308,6 +308,9 @@ export const LastSale: React.FC<LastSaleProps> = ({ onBack }) => {
                   <div>
                     <span className="text-[10px] text-gray-500 block uppercase">BILL NUMBER</span>
                     <strong className="text-black font-mono text-sm">{bill.bill_number}</strong>
+                    <span className="text-[10px] text-gray-400 block">
+                      ({bill.game_code || ''} {bill.customer_name || ''})
+                    </span>
                   </div>
                   <div className="text-right">
                     <span

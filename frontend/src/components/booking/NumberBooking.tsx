@@ -52,6 +52,11 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const startInputRef = useRef<HTMLInputElement>(null);
+  const pasteInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Paste input overlay state
+  const [showPasteInput, setShowPasteInput] = useState(false);
+  const [pasteInputText, setPasteInputText] = useState('');
 
   // Dynamic price resolution from dealer config or defaults
   const customPrices = dealerConfig?.custom_prices || {
@@ -353,64 +358,30 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
     setStagedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Paste from clipboard → parse → directly add to bill (no modal, no preview step)
-  const handlePasteFromClipboard = async () => {
+  // Open paste input area
+  const handlePasteFromClipboard = () => {
     setErrorMessage(null);
-
-    // Primary method: Web Clipboard API (works on modern browsers & some WebViews)
-    const tryWebClipboard = async (): Promise<string | null> => {
-      try {
-        if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
-          const text = await navigator.clipboard.readText();
-          return text || null;
-        }
-      } catch {
-        // permission denied or not available
+    setPasteInputText('');
+    setShowPasteInput(true);
+    // Auto-focus after render
+    setTimeout(() => {
+      if (pasteInputRef.current) {
+        pasteInputRef.current.focus();
       }
-      return null;
-    };
+    }, 100);
+  };
 
-    // Fallback: Create a temporary hidden input, focus it, paste via execCommand
-    const tryInputFallback = (): Promise<string | null> => {
-      return new Promise((resolve) => {
-        const input = document.createElement('textarea');
-        input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
-        document.body.appendChild(input);
-        input.focus();
-        try {
-          const success = document.execCommand('paste');
-          if (success && input.value) {
-            const val = input.value;
-            document.body.removeChild(input);
-            resolve(val);
-            return;
-          }
-        } catch {}
-        // Listen for paste event triggered by OS clipboard
-        const onPaste = (e: ClipboardEvent) => {
-          const text = e.clipboardData?.getData('text') || '';
-          document.body.removeChild(input);
-          resolve(text || null);
-        };
-        input.addEventListener('paste', onPaste, { once: true });
-        setTimeout(() => {
-          input.removeEventListener('paste', onPaste);
-          if (document.body.contains(input)) document.body.removeChild(input);
-          resolve(null);
-        }, 2000);
-      });
-    };
-
-    let text = await tryWebClipboard();
-    if (!text) text = await tryInputFallback();
-
-    if (!text || !text.trim()) {
-      setErrorMessage('Nothing in clipboard. Copy your booking message first.');
+  // Process text from paste input
+  const handleProcessPasteText = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setShowPasteInput(false);
       return;
     }
-    const res = parseBookingMessage(text);
+    const res = parseBookingMessage(trimmed);
     if (res.entries.length === 0) {
-      setErrorMessage('No valid booking entries found in clipboard.');
+      setErrorMessage('No valid booking entries found in pasted text.');
+      setShowPasteInput(false);
       return;
     }
     const newEntries: StagedBookingItem[] = [];
@@ -429,6 +400,8 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
     setStagedItems((prev) => [...prev, ...newEntries]);
     setCopyFeedback(`${res.entries.length} entries added`);
     setTimeout(() => setCopyFeedback(null), 2500);
+    setShowPasteInput(false);
+    setPasteInputText('');
   };
 
   // Submit Booking (Strict workflow: stage -> inspect -> submit -> persist -> bill number)
@@ -613,6 +586,39 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
       )}
 
       {/* Smart Paste Modal removed — paste goes directly to bill */}
+
+      {/* Paste Input Overlay — user manually pastes here (Android compatible) */}
+      {showPasteInput && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center">
+          <div className="bg-white w-full max-w-md rounded-t-2xl p-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-gray-900">Paste Booking Text</span>
+              <button
+                onClick={() => { setShowPasteInput(false); setPasteInputText(''); }}
+                className="p-1 text-gray-400 hover:text-black"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <textarea
+              ref={pasteInputRef}
+              value={pasteInputText}
+              onChange={(e) => setPasteInputText(e.target.value)}
+              placeholder="Long-press here and select Paste..."
+              rows={5}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono text-gray-800 placeholder-gray-400 focus:outline-none focus:border-black resize-none"
+              autoFocus
+            />
+            <button
+              onClick={() => handleProcessPasteText(pasteInputText)}
+              disabled={!pasteInputText.trim()}
+              className="mt-3 w-full py-2.5 bg-black text-white text-xs font-bold uppercase rounded-lg disabled:opacity-40"
+            >
+              Add to Bill
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col bg-white">

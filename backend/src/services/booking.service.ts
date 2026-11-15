@@ -25,11 +25,9 @@ export class BookingService {
   private static activeSubmissions = new Set<string>();
   private static recentSubmissions = new Map<string, CachedSubmission>();
 
-  // Generate unique sequential bill number
+  // Generate unique 6-digit bill number
   private static generateBillNumber(): string {
-    const todayCompact = getISTDateString().replace(/-/g, '');
-    const randomHex = Math.floor(100000 + Math.random() * 900000);
-    return `BILL-${todayCompact}-${randomHex}`;
+    return String(Math.floor(100000 + Math.random() * 900000));
   }
 
   // Validate number format based on LSK category
