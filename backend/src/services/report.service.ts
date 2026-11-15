@@ -118,7 +118,7 @@ export class ReportService {
       // Full View OFF: Compact bill summary
       const sql = `
         SELECT b.id, b.bill_number, b.customer_name, b.game_code, b.draw_date::text,
-               b.total_count, b.status, b.created_at,
+               b.total_count, b.total_d_amount, b.total_c_amount, b.status, b.created_at,
                COALESCE(u.username, b.username_snapshot) AS dealer,
                json_agg(json_build_object(
                  'bookedNumber', bi.booked_number,
@@ -129,7 +129,7 @@ export class ReportService {
         JOIN bill_items bi ON b.id = bi.bill_id
         LEFT JOIN users u ON b.user_id = u.id
         ${whereClause}
-        GROUP BY b.id, b.bill_number, b.customer_name, b.game_code, b.draw_date, b.total_count, b.status, b.created_at, u.username, b.username_snapshot
+        GROUP BY b.id, b.bill_number, b.customer_name, b.game_code, b.draw_date, b.total_count, b.total_d_amount, b.total_c_amount, b.status, b.created_at, u.username, b.username_snapshot
         ORDER BY b.created_at DESC
       `;
       const res = await db.query(sql, params);
@@ -247,14 +247,14 @@ export class ReportService {
     // Detailed table query
     let detailedSql = '';
     if (filter.dayTotal) {
-      // Day Total ON: Game = ALL, group by date and dealer
+      // Day Total ON: group by date only (all games combined)
       detailedSql = `
         SELECT b.draw_date::text AS date,
                COALESCE(u.username, b.username_snapshot) AS dealer,
                'ALL' AS game,
-               SUM(b.total_c_amount) AS sale,
-               COALESCE(w.win_total, 0) AS win,
-               (COALESCE(w.win_total, 0) - SUM(b.total_c_amount)) AS bal
+               SUM(b.total_d_amount) AS sale,
+               COALESCE(SUM(w.win_total), 0) AS win,
+               (SUM(b.total_d_amount) - COALESCE(SUM(w.win_total), 0)) AS bal
         FROM bills b
         LEFT JOIN users u ON b.user_id = u.id
         LEFT JOIN (
@@ -263,18 +263,18 @@ export class ReportService {
           GROUP BY wr.bill_id
         ) w ON b.id = w.bill_id
         ${whereClause}
-        GROUP BY b.draw_date, u.username, b.username_snapshot, w.win_total
+        GROUP BY b.draw_date, u.username, b.username_snapshot
         ORDER BY b.draw_date DESC, dealer ASC
       `;
     } else {
-      // Day Total OFF: Separate by date and game
+      // Day Total OFF: group by date + game
       detailedSql = `
         SELECT b.draw_date::text AS date,
                COALESCE(u.username, b.username_snapshot) AS dealer,
                b.game_code AS game,
-               SUM(b.total_c_amount) AS sale,
-               COALESCE(w.win_total, 0) AS win,
-               (COALESCE(w.win_total, 0) - SUM(b.total_c_amount)) AS bal
+               SUM(b.total_d_amount) AS sale,
+               COALESCE(SUM(w.win_total), 0) AS win,
+               (SUM(b.total_d_amount) - COALESCE(SUM(w.win_total), 0)) AS bal
         FROM bills b
         LEFT JOIN users u ON b.user_id = u.id
         LEFT JOIN (
@@ -283,7 +283,7 @@ export class ReportService {
           GROUP BY wr.bill_id
         ) w ON b.id = w.bill_id
         ${whereClause}
-        GROUP BY b.draw_date, b.game_code, u.username, b.username_snapshot, w.win_total
+        GROUP BY b.draw_date, b.game_code, u.username, b.username_snapshot
         ORDER BY b.draw_date DESC, b.game_code ASC, dealer ASC
       `;
     }
@@ -291,13 +291,12 @@ export class ReportService {
     // Summary table query
     let summarySql = '';
     if (filter.dayTotal) {
-      // Group by dealer with Game = ALL
       summarySql = `
         SELECT COALESCE(u.username, b.username_snapshot) AS dealer,
                'ALL' AS game,
-               SUM(b.total_c_amount) AS sale,
+               SUM(b.total_d_amount) AS sale,
                COALESCE(SUM(w.win_total), 0) AS win,
-               (COALESCE(SUM(w.win_total), 0) - SUM(b.total_c_amount)) AS bal
+               (SUM(b.total_d_amount) - COALESCE(SUM(w.win_total), 0)) AS bal
         FROM bills b
         LEFT JOIN users u ON b.user_id = u.id
         LEFT JOIN (
@@ -310,13 +309,12 @@ export class ReportService {
         ORDER BY dealer ASC
       `;
     } else {
-      // Separate by dealer and game
       summarySql = `
         SELECT COALESCE(u.username, b.username_snapshot) AS dealer,
                b.game_code AS game,
-               SUM(b.total_c_amount) AS sale,
+               SUM(b.total_d_amount) AS sale,
                COALESCE(SUM(w.win_total), 0) AS win,
-               (COALESCE(SUM(w.win_total), 0) - SUM(b.total_c_amount)) AS bal
+               (SUM(b.total_d_amount) - COALESCE(SUM(w.win_total), 0)) AS bal
         FROM bills b
         LEFT JOIN users u ON b.user_id = u.id
         LEFT JOIN (
@@ -337,7 +335,7 @@ export class ReportService {
 
     const totalSale = summaryRes.rows.reduce((sum, r) => sum + Number(r.sale || 0), 0);
     const totalWin = summaryRes.rows.reduce((sum, r) => sum + Number(r.win || 0), 0);
-    const totalBal = totalWin - totalSale;
+    const totalBal = totalSale - totalWin;
 
     return {
       summary: summaryRes.rows,
