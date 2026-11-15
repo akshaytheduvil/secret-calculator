@@ -12,6 +12,7 @@
     "@capacitor/android": "^6.0.0",
     "@capacitor/app": "^6.0.3",
     "@capacitor/cli": "^6.0.0",
+    "@capacitor/clipboard": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.395.0",

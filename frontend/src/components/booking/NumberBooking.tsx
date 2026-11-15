@@ -6,6 +6,7 @@ import {
   Menu, Copy, Camera, X, Clipboard, Clock
 } from 'lucide-react';
 import { parseBookingMessage } from '../../utils/smartPasteParser';
+import { Clipboard as CapClipboard } from '@capacitor/clipboard';
 
 interface StagedBookingItem {
   id: string;
@@ -52,11 +53,6 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const startInputRef = useRef<HTMLInputElement>(null);
-  const pasteInputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Paste input overlay state
-  const [showPasteInput, setShowPasteInput] = useState(false);
-  const [pasteInputText, setPasteInputText] = useState('');
 
   // Dynamic price resolution from dealer config or defaults
   const customPrices = dealerConfig?.custom_prices || {
@@ -358,30 +354,36 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
     setStagedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Open paste input area
-  const handlePasteFromClipboard = () => {
+  // Paste from clipboard → directly add to bill (uses @capacitor/clipboard on Android)
+  const handlePasteFromClipboard = async () => {
     setErrorMessage(null);
-    setPasteInputText('');
-    setShowPasteInput(true);
-    // Auto-focus after render
-    setTimeout(() => {
-      if (pasteInputRef.current) {
-        pasteInputRef.current.focus();
-      }
-    }, 100);
-  };
+    let text = '';
 
-  // Process text from paste input
-  const handleProcessPasteText = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      setShowPasteInput(false);
+    // 1. Try Capacitor Clipboard (works natively on Android without permission prompt)
+    try {
+      const result = await CapClipboard.read();
+      text = result.value || '';
+    } catch {
+      // Capacitor not available (e.g. web browser) — fall through
+    }
+
+    // 2. Fallback: Web Clipboard API
+    if (!text) {
+      try {
+        text = await navigator.clipboard.readText();
+      } catch {
+        // also blocked
+      }
+    }
+
+    if (!text || !text.trim()) {
+      setErrorMessage('Nothing in clipboard. Copy your booking message first.');
       return;
     }
-    const res = parseBookingMessage(trimmed);
+
+    const res = parseBookingMessage(text.trim());
     if (res.entries.length === 0) {
-      setErrorMessage('No valid booking entries found in pasted text.');
-      setShowPasteInput(false);
+      setErrorMessage('No valid booking entries found in clipboard.');
       return;
     }
     const newEntries: StagedBookingItem[] = [];
@@ -398,10 +400,8 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
       });
     }
     setStagedItems((prev) => [...prev, ...newEntries]);
-    setCopyFeedback(`${res.entries.length} entries added`);
+    setCopyFeedback(`✓ ${res.entries.length} entries added from clipboard`);
     setTimeout(() => setCopyFeedback(null), 2500);
-    setShowPasteInput(false);
-    setPasteInputText('');
   };
 
   // Submit Booking (Strict workflow: stage -> inspect -> submit -> persist -> bill number)
@@ -587,38 +587,6 @@ export const NumberBooking: React.FC<NumberBookingProps> = ({ onOpenMenu }) => {
 
       {/* Smart Paste Modal removed — paste goes directly to bill */}
 
-      {/* Paste Input Overlay — user manually pastes here (Android compatible) */}
-      {showPasteInput && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center">
-          <div className="bg-white w-full max-w-md rounded-t-2xl p-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-gray-900">Paste Booking Text</span>
-              <button
-                onClick={() => { setShowPasteInput(false); setPasteInputText(''); }}
-                className="p-1 text-gray-400 hover:text-black"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <textarea
-              ref={pasteInputRef}
-              value={pasteInputText}
-              onChange={(e) => setPasteInputText(e.target.value)}
-              placeholder="Long-press here and select Paste..."
-              rows={5}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono text-gray-800 placeholder-gray-400 focus:outline-none focus:border-black resize-none"
-              autoFocus
-            />
-            <button
-              onClick={() => handleProcessPasteText(pasteInputText)}
-              disabled={!pasteInputText.trim()}
-              className="mt-3 w-full py-2.5 bg-black text-white text-xs font-bold uppercase rounded-lg disabled:opacity-40"
-            >
-              Add to Bill
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col bg-white">
