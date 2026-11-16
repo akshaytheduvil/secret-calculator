@@ -13,7 +13,8 @@ import {
   RefreshCw,
   LogOut,
   X,
-  Calendar
+  Calendar,
+  Edit2
 } from 'lucide-react';
 import { TodayReport } from '../reports/TodayReport';
 
@@ -43,6 +44,14 @@ export const AdminPortal: React.FC = () => {
   const [resetModalUser, setResetModalUser] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
+  // Edit Agent Modal
+  const [editAgentModal, setEditAgentModal] = useState<any | null>(null);
+  const [editComm, setEditComm] = useState('0.5');
+  const [editDC, setEditDC] = useState('50');
+  const [editTriplePrice, setEditTriplePrice] = useState('10');
+  const [editDoublePrice, setEditDoublePrice] = useState('10');
+  const [editSinglePrice, setEditSinglePrice] = useState('12');
+
   // Result Management
   const [selectedResultGame, setSelectedResultGame] = useState('KL');
   const [selectedResultDate, setSelectedResultDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -51,7 +60,7 @@ export const AdminPortal: React.FC = () => {
   const [thirdPrize, setThirdPrize] = useState('');
   const [fourthPrize, setFourthPrize] = useState('');
   const [fifthPrize, setFifthPrize] = useState('');
-  const [compNumbersStr, setCompNumbersStr] = useState('');
+  const [compNumbers, setCompNumbers] = useState<string[]>(Array(30).fill(''));
   const [currentDrawId, setCurrentDrawId] = useState('');
 
   // Prize Config
@@ -122,14 +131,16 @@ export const AdminPortal: React.FC = () => {
         setThirdPrize(matched.third_prize || '');
         setFourthPrize(matched.fourth_prize || '');
         setFifthPrize(matched.fifth_prize || '');
-        setCompNumbersStr(matched.complementary_numbers ? matched.complementary_numbers.join(', ') : '');
+        const arr = Array(30).fill('');
+        (matched.complementary_numbers || []).forEach((n: string, i: number) => { if (i < 30) arr[i] = n; });
+        setCompNumbers([...arr]);
       } else {
         setFirstPrize('');
         setSecondPrize('');
         setThirdPrize('');
         setFourthPrize('');
         setFifthPrize('');
-        setCompNumbersStr('');
+        setCompNumbers(Array(30).fill(''));
       }
     } catch {
       setFirstPrize('');
@@ -137,7 +148,7 @@ export const AdminPortal: React.FC = () => {
       setThirdPrize('');
       setFourthPrize('');
       setFifthPrize('');
-      setCompNumbersStr('');
+      setCompNumbers(Array(30).fill(''));
     }
   }, [selectedResultGame, selectedResultDate]);
 
@@ -190,6 +201,29 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  const handleSaveEditAgent = async () => {
+    if (!editAgentModal) return;
+    try {
+      await ApiClient.updateAgent(editAgentModal.id, {
+        salesCommission: parseFloat(editComm) || 0.5,
+        isActive: editAgentModal.is_active
+      });
+      await ApiClient.updateSubDealer(editAgentModal.id, {
+        dc: Number(editDC),
+        customPrices: {
+          three_digit: { c: 10, d: Number(editTriplePrice) },
+          two_digit: { c: 10, d: Number(editDoublePrice) },
+          one_digit: { c: 12, d: Number(editSinglePrice) }
+        }
+      });
+      setEditAgentModal(null);
+      fetchAgents();
+      alert('Agent updated successfully!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to update agent');
+    }
+  };
+
   const handleDeleteUser = async (u: any) => {
     if (!window.confirm(`Delete ${u.role.toLowerCase()} "${u.username}"?`)) return;
     try {
@@ -207,10 +241,7 @@ export const AdminPortal: React.FC = () => {
       return;
     }
 
-    const comps = compNumbersStr
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const comps = compNumbers.filter(Boolean);
 
     try {
       await ApiClient.publishResult({
@@ -385,6 +416,21 @@ export const AdminPortal: React.FC = () => {
                       <td className="py-2 px-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={() => {
+                              setEditAgentModal(ag);
+                              setEditComm(String(ag.sales_commission ?? '0.5'));
+                              setEditDC(String(ag.winning_commission_dc ?? '50'));
+                              const cp = ag.custom_prices;
+                              setEditTriplePrice(String(cp?.three_digit?.d ?? '10'));
+                              setEditDoublePrice(String(cp?.two_digit?.d ?? '10'));
+                              setEditSinglePrice(String(cp?.one_digit?.d ?? '12'));
+                            }}
+                            className="text-blue-500 hover:text-blue-700 p-1"
+                            title="Edit Agent"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => setResetModalUser(ag)}
                             className="text-gray-500 hover:text-black p-1"
                             title="Reset Password"
@@ -532,16 +578,28 @@ export const AdminPortal: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Complementary Numbers (comma separated)
+              <label className="block text-xs text-gray-500 mb-2">
+                Complementary Numbers (6–35) — 30 boxes
               </label>
-              <textarea
-                rows={3}
-                value={compNumbersStr}
-                onChange={(e) => setCompNumbersStr(e.target.value)}
-                placeholder="004, 233, 650, 028, 248, 689..."
-                className="w-full border border-gray-300 rounded p-2 text-xs font-mono"
-              />
+              <div className="grid grid-cols-6 gap-1.5">
+                {compNumbers.map((val, i) => (
+                  <div key={i}>
+                    <label className="block text-[9px] text-gray-400 text-center mb-0.5">{i + 6}</label>
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={val}
+                      onChange={(e) => {
+                        const a = [...compNumbers];
+                        a[i] = e.target.value;
+                        setCompNumbers(a);
+                      }}
+                      className="w-full border border-gray-300 rounded p-1 text-center font-mono font-bold text-xs"
+                      placeholder="---"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 pt-2">
@@ -696,6 +754,79 @@ export const AdminPortal: React.FC = () => {
                 SAVE
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Agent */}
+      {editAgentModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded p-5 max-w-xs w-full shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-gray-800 uppercase">Edit Agent</h3>
+              <button onClick={() => setEditAgentModal(null)} className="text-gray-400 hover:text-black">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Agent: <strong>{editAgentModal.username}</strong></p>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-500 mb-1">Commission (₹)</label>
+                <input
+                  type="text"
+                  value={editComm}
+                  onChange={(e) => setEditComm(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-500 mb-1">DC (Winning Commission %)</label>
+                <input
+                  type="text"
+                  value={editDC}
+                  onChange={(e) => setEditDC(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5"
+                />
+              </div>
+              <div className="border-t pt-2">
+                <p className="text-[10px] text-gray-500 uppercase font-semibold mb-2">Ticket D-Price (Wholesale)</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-gray-400 mb-0.5">3 Digit (SUPER/BOX) D-Price</label>
+                    <input
+                      type="text"
+                      value={editTriplePrice}
+                      onChange={(e) => setEditTriplePrice(e.target.value)}
+                      className="w-full border border-gray-300 rounded p-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-0.5">2 Digit (AB/BC/AC) D-Price</label>
+                    <input
+                      type="text"
+                      value={editDoublePrice}
+                      onChange={(e) => setEditDoublePrice(e.target.value)}
+                      className="w-full border border-gray-300 rounded p-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-0.5">1 Digit (A/B/C) D-Price</label>
+                    <input
+                      type="text"
+                      value={editSinglePrice}
+                      onChange={(e) => setEditSinglePrice(e.target.value)}
+                      className="w-full border border-gray-300 rounded p-1.5"
+                    />
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleSaveEditAgent}
+                className="w-full py-2 bg-[#ff0000] text-white font-bold uppercase rounded mt-2"
+              >
+                SAVE
+              </button>
+            </div>
           </div>
         </div>
       )}
