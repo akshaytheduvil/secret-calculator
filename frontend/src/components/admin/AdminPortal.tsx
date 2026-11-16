@@ -5,7 +5,6 @@ import {
   Users,
   Award,
   DollarSign,
-  Clock,
   Layers,
   KeyRound,
   Trash2,
@@ -14,13 +13,30 @@ import {
   LogOut,
   X,
   Calendar,
-  Edit2
+  Edit2,
+  ChevronLeft,
+  Trophy,
+  Percent,
+  Tag,
+  ToggleLeft
 } from 'lucide-react';
 import { TodayReport } from '../reports/TodayReport';
 
+type AdminView =
+  | 'home'
+  | 'dashboard'
+  | 'today'
+  | 'agents'
+  | 'results'
+  | 'prizes'
+  | 'draws'
+  | 'set_dc_agent'
+  | 'set_ticket_agent'
+  | 'winning_report';
+
 export const AdminPortal: React.FC = () => {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'today' | 'agents' | 'results' | 'prizes' | 'draws'>('dashboard');
+  const [view, setView] = useState<AdminView>('home');
 
   // Dashboard Metrics
   const [metrics, setMetrics] = useState({
@@ -47,10 +63,6 @@ export const AdminPortal: React.FC = () => {
   // Edit Agent Modal
   const [editAgentModal, setEditAgentModal] = useState<any | null>(null);
   const [editComm, setEditComm] = useState('0.5');
-  const [editDC, setEditDC] = useState('50');
-  const [editTriplePrice, setEditTriplePrice] = useState('10');
-  const [editDoublePrice, setEditDoublePrice] = useState('10');
-  const [editSinglePrice, setEditSinglePrice] = useState('12');
 
   // Result Management
   const [selectedResultGame, setSelectedResultGame] = useState('KL');
@@ -75,6 +87,36 @@ export const AdminPortal: React.FC = () => {
   // Draws Overview
   const [drawsOverview, setDrawsOverview] = useState<{ today: any[]; tomorrow: any[] }>({ today: [], tomorrow: [] });
 
+  // ── Set DC for Agent ──
+  const [dcAgentSelected, setDcAgentSelected] = useState('');
+  const [dcAgentGame, setDcAgentGame] = useState('KL');
+  const [dcAgentTable, setDcAgentTable] = useState([
+    { resultType: 'First Price', category: 'SUPER', dc: '400' },
+    { resultType: 'First Price', category: 'BOX', dc: '240' },
+    { resultType: 'First Price', category: '2 Digit', dc: '40' },
+    { resultType: 'First Price', category: '1 Digit', dc: '20' },
+    { resultType: 'Second Price', category: 'SUPER', dc: '40' },
+    { resultType: 'Third Price', category: 'SUPER', dc: '20' },
+    { resultType: 'Fourth Price', category: 'SUPER', dc: '20' },
+    { resultType: 'Fifth Price', category: 'SUPER', dc: '20' },
+    { resultType: 'Complementary', category: 'SUPER', dc: '0' }
+  ]);
+
+  // ── Set Ticket Price for Agent ──
+  const [tpAgentSelected, setTpAgentSelected] = useState('');
+  const [tpAgentGame, setTpAgentGame] = useState('KL');
+  const [tpSingle, setTpSingle] = useState('12');
+  const [tpDouble, setTpDouble] = useState('10');
+  const [tpTriple, setTpTriple] = useState('10');
+
+  // ── Winning Report ──
+  const [wrAgentId, setWrAgentId] = useState('');
+  const [wrDate, setWrDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [wrGame, setWrGame] = useState('');
+  const [wrRecords, setWrRecords] = useState<any[]>([]);
+  const [wrLoading, setWrLoading] = useState(false);
+
+  // ─── Fetch helpers ───
   const fetchDashboardData = useCallback(async () => {
     try {
       const data = await ApiClient.getAdminDashboard();
@@ -97,12 +139,9 @@ export const AdminPortal: React.FC = () => {
     try {
       const data = await ApiClient.getDrawOverview();
       setDrawsOverview(data);
-
       const allDraws = [...(data.today || []), ...(data.tomorrow || [])];
       const match = allDraws.find((d: any) => d.game_code === selectedResultGame && d.draw_date === selectedResultDate);
-      if (match) {
-        setCurrentDrawId(match.id);
-      }
+      if (match) setCurrentDrawId(match.id);
     } catch {}
   }, [selectedResultGame, selectedResultDate]);
 
@@ -135,19 +174,13 @@ export const AdminPortal: React.FC = () => {
         (matched.complementary_numbers || []).forEach((n: string, i: number) => { if (i < 30) arr[i] = n; });
         setCompNumbers([...arr]);
       } else {
-        setFirstPrize('');
-        setSecondPrize('');
-        setThirdPrize('');
-        setFourthPrize('');
-        setFifthPrize('');
+        setFirstPrize(''); setSecondPrize(''); setThirdPrize('');
+        setFourthPrize(''); setFifthPrize('');
         setCompNumbers(Array(30).fill(''));
       }
     } catch {
-      setFirstPrize('');
-      setSecondPrize('');
-      setThirdPrize('');
-      setFourthPrize('');
-      setFifthPrize('');
+      setFirstPrize(''); setSecondPrize(''); setThirdPrize('');
+      setFourthPrize(''); setFifthPrize('');
       setCompNumbers(Array(30).fill(''));
     }
   }, [selectedResultGame, selectedResultDate]);
@@ -157,18 +190,13 @@ export const AdminPortal: React.FC = () => {
     fetchAgents();
     fetchDraws();
     fetchPrizes();
-
-    // Real-time synchronization for Admin dashboard
-    const interval = setInterval(() => {
-      fetchDashboardData();
-    }, 10000);
+    const interval = setInterval(() => fetchDashboardData(), 10000);
     return () => clearInterval(interval);
   }, [fetchDashboardData, fetchAgents, fetchDraws, fetchPrizes]);
 
-  useEffect(() => {
-    fetchExistingResults();
-  }, [fetchExistingResults]);
+  useEffect(() => { fetchExistingResults(); }, [fetchExistingResults]);
 
+  // ─── Handlers ───
   const handleCreateAgent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAgentUser.trim() || !newAgentPass) return;
@@ -179,13 +207,9 @@ export const AdminPortal: React.FC = () => {
         salesCommission: parseFloat(newAgentComm) || 0.5
       });
       setShowAgentModal(false);
-      setNewAgentUser('');
-      setNewAgentPass('');
-      fetchAgents();
-      fetchDashboardData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to create agent');
-    }
+      setNewAgentUser(''); setNewAgentPass('');
+      fetchAgents(); fetchDashboardData();
+    } catch (err: any) { alert(err.message || 'Failed to create agent'); }
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -193,56 +217,35 @@ export const AdminPortal: React.FC = () => {
     if (!resetModalUser || !newPassword) return;
     try {
       await ApiClient.resetAgentPassword(resetModalUser.id, newPassword);
-      setResetModalUser(null);
-      setNewPassword('');
+      setResetModalUser(null); setNewPassword('');
       alert('Password reset successfully');
-    } catch (err: any) {
-      alert(err.message || 'Password reset failed');
-    }
-  };
-
-  const handleSaveEditAgent = async () => {
-    if (!editAgentModal) return;
-    try {
-      await ApiClient.updateAgent(editAgentModal.id, {
-        salesCommission: parseFloat(editComm) || 0.5,
-        isActive: editAgentModal.is_active
-      });
-      await ApiClient.updateSubDealer(editAgentModal.id, {
-        dc: Number(editDC),
-        customPrices: {
-          three_digit: { c: 10, d: Number(editTriplePrice) },
-          two_digit: { c: 10, d: Number(editDoublePrice) },
-          one_digit: { c: 12, d: Number(editSinglePrice) }
-        }
-      });
-      setEditAgentModal(null);
-      fetchAgents();
-      alert('Agent updated successfully!');
-    } catch (err: any) {
-      alert(err.message || 'Failed to update agent');
-    }
+    } catch (err: any) { alert(err.message || 'Password reset failed'); }
   };
 
   const handleDeleteUser = async (u: any) => {
     if (!window.confirm(`Delete ${u.role.toLowerCase()} "${u.username}"?`)) return;
     try {
       await ApiClient.deleteUser(u.id);
+      fetchAgents(); fetchDashboardData();
+    } catch (err: any) { alert(err.message || 'Failed to delete user'); }
+  };
+
+  const handleSaveEditAgentComm = async () => {
+    if (!editAgentModal) return;
+    try {
+      await ApiClient.updateAgent(editAgentModal.id, {
+        salesCommission: parseFloat(editComm) || 0.5,
+        isActive: editAgentModal.is_active
+      });
+      setEditAgentModal(null);
       fetchAgents();
-      fetchDashboardData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete user');
-    }
+      alert('Commission updated!');
+    } catch (err: any) { alert(err.message || 'Failed to update'); }
   };
 
   const handlePublishResults = async (isFinalPublish: boolean) => {
-    if (!currentDrawId) {
-      alert('Draw record not found for selected date and game');
-      return;
-    }
-
+    if (!currentDrawId) { alert('Draw record not found for selected date and game'); return; }
     const comps = compNumbers.filter(Boolean);
-
     try {
       await ApiClient.publishResult({
         drawId: currentDrawId,
@@ -255,11 +258,8 @@ export const AdminPortal: React.FC = () => {
         isPublished: isFinalPublish
       });
       alert(isFinalPublish ? 'Results published successfully!' : 'Draft saved.');
-      fetchDraws();
-      fetchExistingResults();
-    } catch (err: any) {
-      alert(err.message || 'Failed to publish results');
-    }
+      fetchDraws(); fetchExistingResults();
+    } catch (err: any) { alert(err.message || 'Failed to publish results'); }
   };
 
   const handleSavePrizes = async (e: React.FormEvent) => {
@@ -267,9 +267,7 @@ export const AdminPortal: React.FC = () => {
     try {
       await ApiClient.updatePrizeConfig(prizeConfig);
       alert('Prize configuration updated');
-    } catch (err: any) {
-      alert(err.message || 'Failed to update prize config');
-    }
+    } catch (err: any) { alert(err.message || 'Failed to update prize config'); }
   };
 
   const handleToggleDrawStatus = async (drawId: string, currentStatus: string) => {
@@ -277,29 +275,125 @@ export const AdminPortal: React.FC = () => {
     try {
       await ApiClient.setManualDrawStatus(drawId, nextStatus);
       fetchDraws();
-    } catch (err: any) {
-      alert(err.message || 'Failed to update draw status');
+    } catch (err: any) { alert(err.message || 'Failed to update draw status'); }
+  };
+
+  // Set DC for Agent
+  const handleDcAgentUserChange = (agId: string) => {
+    setDcAgentSelected(agId);
+    const ag = agents.find((a) => a.id === agId);
+    if (ag?.winning_commission_dc != null) {
+      const base = Number(ag.winning_commission_dc);
+      setDcAgentTable([
+        { resultType: 'First Price', category: 'SUPER', dc: String(base) },
+        { resultType: 'First Price', category: 'BOX', dc: String(Math.round(base * 0.6)) },
+        { resultType: 'First Price', category: '2 Digit', dc: String(Math.round(base * 0.1)) },
+        { resultType: 'First Price', category: '1 Digit', dc: String(Math.round(base * 0.05)) },
+        { resultType: 'Second Price', category: 'SUPER', dc: String(Math.round(base * 0.1)) },
+        { resultType: 'Third Price', category: 'SUPER', dc: String(Math.round(base * 0.05)) },
+        { resultType: 'Fourth Price', category: 'SUPER', dc: String(Math.round(base * 0.05)) },
+        { resultType: 'Fifth Price', category: 'SUPER', dc: String(Math.round(base * 0.05)) },
+        { resultType: 'Complementary', category: 'SUPER', dc: '0' }
+      ]);
     }
   };
 
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: Layers },
-    { id: 'today', label: 'Today', icon: Calendar },
-    { id: 'agents', label: 'Agents', icon: Users },
-    { id: 'results', label: 'Results', icon: Award },
-    { id: 'prizes', label: 'Prizes', icon: DollarSign },
-    { id: 'draws', label: 'Draws', icon: Clock }
+  const handleSaveDcAgent = async () => {
+    if (!dcAgentSelected) { alert('Please select an agent'); return; }
+    try {
+      const superDC = Number(dcAgentTable[0]?.dc || 0);
+      await ApiClient.updateSubDealer(dcAgentSelected, { dc: superDC });
+      await fetchAgents();
+      alert('DC saved for agent!');
+    } catch (err: any) { alert(err.message || 'Failed to save DC'); }
+  };
+
+  // Set Ticket Price for Agent
+  const handleTpAgentUserChange = (agId: string) => {
+    setTpAgentSelected(agId);
+    const ag = agents.find((a) => a.id === agId);
+    if (ag?.custom_prices) {
+      setTpSingle(String(ag.custom_prices.one_digit?.d ?? '12'));
+      setTpDouble(String(ag.custom_prices.two_digit?.d ?? '10'));
+      setTpTriple(String(ag.custom_prices.three_digit?.d ?? '10'));
+    }
+  };
+
+  const handleSaveTpAgent = async () => {
+    if (!tpAgentSelected) { alert('Please select an agent'); return; }
+    const ag = agents.find((a) => a.id === tpAgentSelected);
+    try {
+      const existing = ag?.custom_prices || {};
+      await ApiClient.updateSubDealer(tpAgentSelected, {
+        customPrices: {
+          three_digit: { c: existing.three_digit?.c ?? 10, d: Number(tpTriple) },
+          two_digit: { c: existing.two_digit?.c ?? 10, d: Number(tpDouble) },
+          one_digit: { c: existing.one_digit?.c ?? 12, d: Number(tpSingle) }
+        }
+      });
+      await fetchAgents();
+      alert('Ticket prices saved for agent!');
+    } catch (err: any) { alert(err.message || 'Failed to save ticket prices'); }
+  };
+
+  // Winning Report
+  const handleLoadWinningReport = async () => {
+    setWrLoading(true);
+    try {
+      const params: Record<string, any> = { date: wrDate };
+      if (wrAgentId) params.userId = wrAgentId;
+      if (wrGame) params.gameCode = wrGame;
+      const data = await ApiClient.getWinningReport(params);
+      setWrRecords(data.records || data.winnings || data || []);
+    } catch (err: any) {
+      alert(err.message || 'Failed to load winning report');
+    } finally {
+      setWrLoading(false);
+    }
+  };
+
+  // ─── HOME MENU items ───
+  const menuItems: { id: AdminView; label: string; icon: React.ElementType; color: string }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: Layers, color: 'bg-blue-600' },
+    { id: 'today', label: "Today's Report", icon: Calendar, color: 'bg-teal-600' },
+    { id: 'agents', label: 'Agents', icon: Users, color: 'bg-indigo-600' },
+    { id: 'results', label: 'Result Upload', icon: Award, color: 'bg-orange-500' },
+    { id: 'prizes', label: 'Prize Config', icon: DollarSign, color: 'bg-green-600' },
+    { id: 'draws', label: 'Draw Control', icon: ToggleLeft, color: 'bg-purple-600' },
+    { id: 'set_dc_agent', label: 'Set DC (Agent)', icon: Percent, color: 'bg-rose-500' },
+    { id: 'set_ticket_agent', label: 'Set Ticket Price (Agent)', icon: Tag, color: 'bg-yellow-600' },
+    { id: 'winning_report', label: 'Winning Report', icon: Trophy, color: 'bg-amber-500' }
   ];
+
+  const viewTitle: Record<AdminView, string> = {
+    home: 'Admin Console',
+    dashboard: 'Dashboard',
+    today: "Today's Report",
+    agents: 'Agents',
+    results: 'Result Upload',
+    prizes: 'Prize Config',
+    draws: 'Draw Control',
+    set_dc_agent: 'Set DC — Agent',
+    set_ticket_agent: 'Set Ticket Price — Agent',
+    winning_report: 'Winning Report'
+  };
+
+  const selectedDcAgent = agents.find((a) => a.id === dcAgentSelected);
+  const selectedTpAgent = agents.find((a) => a.id === tpAgentSelected);
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-800 flex flex-col">
       {/* Red Header */}
       <header className="bg-[#ff0000] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-base tracking-wide">Admin Console</span>
-          <span className="text-xs text-white/90 font-medium">Welcome, {user?.username}</span>
+          {view !== 'home' && (
+            <button onClick={() => setView('home')} className="mr-1 text-white hover:text-gray-200">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          <span className="font-bold text-base tracking-wide">{viewTitle[view]}</span>
+          {view === 'home' && <span className="text-xs text-white/80 font-medium">Welcome, {user?.username}</span>}
         </div>
-
         <button
           onClick={logout}
           className="text-xs font-bold text-white hover:text-gray-200 transition-colors uppercase tracking-wider flex items-center gap-1"
@@ -309,46 +403,36 @@ export const AdminPortal: React.FC = () => {
         </button>
       </header>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-1 overflow-x-auto py-2 text-xs font-semibold">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded flex items-center gap-1.5 transition-colors ${
-                  isActive
-                    ? 'bg-[#ff0000] text-white shadow-sm'
-                    : 'text-gray-600 hover:text-black hover:bg-gray-100'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Content */}
       <main className="max-w-4xl w-full mx-auto p-4 flex-1">
-        {/* 1. Dashboard */}
-        {activeTab === 'dashboard' && (
+
+        {/* ── HOME SCREEN ── */}
+        {view === 'home' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setView(item.id)}
+                  className={`${item.color} text-white rounded-xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm active:scale-95 transition-transform`}
+                >
+                  <Icon className="w-7 h-7" />
+                  <span className="text-xs font-bold text-center leading-tight">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── DASHBOARD ── */}
+        {view === 'dashboard' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Overview</h2>
-              <button
-                onClick={fetchDashboardData}
-                className="p-1.5 text-gray-500 hover:text-black transition-colors"
-                title="Refresh"
-              >
+              <button onClick={fetchDashboardData} className="p-1.5 text-gray-500 hover:text-black transition-colors">
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
-
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
                 <span className="text-[10px] text-gray-500 uppercase block font-semibold">Agents</span>
@@ -370,15 +454,15 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
-        {/* 2. Today Report */}
-        {activeTab === 'today' && (
+        {/* ── TODAY REPORT ── */}
+        {view === 'today' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <TodayReport onBack={() => setActiveTab('dashboard')} />
+            <TodayReport onBack={() => setView('home')} />
           </div>
         )}
 
-        {/* 3. Agents */}
-        {activeTab === 'agents' && (
+        {/* ── AGENTS ── */}
+        {view === 'agents' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Agents List</h2>
@@ -416,17 +500,9 @@ export const AdminPortal: React.FC = () => {
                       <td className="py-2 px-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => {
-                              setEditAgentModal(ag);
-                              setEditComm(String(ag.sales_commission ?? '0.5'));
-                              setEditDC(String(ag.winning_commission_dc ?? '50'));
-                              const cp = ag.custom_prices;
-                              setEditTriplePrice(String(cp?.three_digit?.d ?? '10'));
-                              setEditDoublePrice(String(cp?.two_digit?.d ?? '10'));
-                              setEditSinglePrice(String(cp?.one_digit?.d ?? '12'));
-                            }}
+                            onClick={() => { setEditAgentModal(ag); setEditComm(String(ag.sales_commission ?? '0.5')); }}
                             className="text-blue-500 hover:text-blue-700 p-1"
-                            title="Edit Agent"
+                            title="Edit Commission"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -493,8 +569,8 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
-        {/* 3. Result Management */}
-        {activeTab === 'results' && (
+        {/* ── RESULTS ── */}
+        {view === 'results' && (
           <div className="bg-white border border-gray-200 rounded p-4 space-y-4 shadow-sm">
             <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Result Upload</h2>
 
@@ -512,7 +588,6 @@ export const AdminPortal: React.FC = () => {
                   <option value="DR8">DR 8</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Date</label>
                 <input
@@ -525,56 +600,22 @@ export const AdminPortal: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">1st Price</label>
-                <input
-                  type="text"
-                  maxLength={3}
-                  value={firstPrize}
-                  onChange={(e) => setFirstPrize(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5 text-center font-mono font-bold text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">2nd Price</label>
-                <input
-                  type="text"
-                  maxLength={3}
-                  value={secondPrize}
-                  onChange={(e) => setSecondPrize(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5 text-center font-mono font-bold text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">3rd Price</label>
-                <input
-                  type="text"
-                  maxLength={3}
-                  value={thirdPrize}
-                  onChange={(e) => setThirdPrize(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5 text-center font-mono font-bold text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">4th Price</label>
-                <input
-                  type="text"
-                  maxLength={3}
-                  value={fourthPrize}
-                  onChange={(e) => setFourthPrize(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5 text-center font-mono font-bold text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">5th Price</label>
-                <input
-                  type="text"
-                  maxLength={3}
-                  value={fifthPrize}
-                  onChange={(e) => setFifthPrize(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5 text-center font-mono font-bold text-xs"
-                />
-              </div>
+              {[
+                { label: '1st Price', val: firstPrize, set: setFirstPrize },
+                { label: '2nd Price', val: secondPrize, set: setSecondPrize },
+                { label: '3rd Price', val: thirdPrize, set: setThirdPrize },
+                { label: '4th Price', val: fourthPrize, set: setFourthPrize },
+                { label: '5th Price', val: fifthPrize, set: setFifthPrize }
+              ].map(({ label, val, set }) => (
+                <div key={label}>
+                  <label className="block text-[11px] text-gray-500 mb-0.5">{label}</label>
+                  <input
+                    type="text" maxLength={3} value={val}
+                    onChange={(e) => set(e.target.value)}
+                    className="w-full border border-gray-300 rounded p-1.5 text-center font-mono font-bold text-xs"
+                  />
+                </div>
+              ))}
             </div>
 
             <div>
@@ -586,14 +627,8 @@ export const AdminPortal: React.FC = () => {
                   <div key={i}>
                     <label className="block text-[9px] text-gray-400 text-center mb-0.5">{i + 6}</label>
                     <input
-                      type="text"
-                      maxLength={3}
-                      value={val}
-                      onChange={(e) => {
-                        const a = [...compNumbers];
-                        a[i] = e.target.value;
-                        setCompNumbers(a);
-                      }}
+                      type="text" maxLength={3} value={val}
+                      onChange={(e) => { const a = [...compNumbers]; a[i] = e.target.value; setCompNumbers(a); }}
                       className="w-full border border-gray-300 rounded p-1 text-center font-mono font-bold text-xs"
                       placeholder="---"
                     />
@@ -604,15 +639,13 @@ export const AdminPortal: React.FC = () => {
 
             <div className="flex items-center gap-2 pt-2">
               <button
-                type="button"
-                onClick={() => handlePublishResults(false)}
+                type="button" onClick={() => handlePublishResults(false)}
                 className="bg-gray-700 hover:bg-gray-800 text-white font-semibold text-xs px-4 py-2 rounded uppercase"
               >
                 Save Draft
               </button>
               <button
-                type="button"
-                onClick={() => handlePublishResults(true)}
+                type="button" onClick={() => handlePublishResults(true)}
                 className="bg-[#ff0000] hover:bg-red-700 text-white font-semibold text-xs px-5 py-2 rounded uppercase"
               >
                 Publish Results
@@ -621,92 +654,338 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
-        {/* 4. Prize Configuration */}
-        {activeTab === 'prizes' && (
+        {/* ── PRIZE CONFIG ── */}
+        {view === 'prizes' && (
           <form onSubmit={handleSavePrizes} className="bg-white border border-gray-200 rounded p-4 space-y-4 shadow-sm">
             <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Prize Amounts</h2>
-
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="block text-gray-500 mb-1">SUPER Prize (₹)</label>
-                <input
-                  type="number"
-                  value={prizeConfig.superPrize}
-                  onChange={(e) => setPrizeConfig({ ...prizeConfig, superPrize: parseInt(e.target.value) || 0 })}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-500 mb-1">BOX Prize (₹)</label>
-                <input
-                  type="number"
-                  value={prizeConfig.boxPrize}
-                  onChange={(e) => setPrizeConfig({ ...prizeConfig, boxPrize: parseInt(e.target.value) || 0 })}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-500 mb-1">Single Digit Prize (₹)</label>
-                <input
-                  type="number"
-                  value={prizeConfig.oneDigitPrize}
-                  onChange={(e) => setPrizeConfig({ ...prizeConfig, oneDigitPrize: parseInt(e.target.value) || 0 })}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-500 mb-1">Two Digit Prize (₹)</label>
-                <input
-                  type="number"
-                  value={prizeConfig.twoDigitPrize}
-                  onChange={(e) => setPrizeConfig({ ...prizeConfig, twoDigitPrize: parseInt(e.target.value) || 0 })}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
-              </div>
+              {[
+                { label: 'SUPER Prize (₹)', key: 'superPrize' },
+                { label: 'BOX Prize (₹)', key: 'boxPrize' },
+                { label: 'Single Digit Prize (₹)', key: 'oneDigitPrize' },
+                { label: 'Two Digit Prize (₹)', key: 'twoDigitPrize' }
+              ].map(({ label, key }) => (
+                <div key={key}>
+                  <label className="block text-gray-500 mb-1">{label}</label>
+                  <input
+                    type="number"
+                    value={(prizeConfig as any)[key]}
+                    onChange={(e) => setPrizeConfig({ ...prizeConfig, [key]: parseInt(e.target.value) || 0 })}
+                    className="w-full border border-gray-300 rounded p-1.5"
+                  />
+                </div>
+              ))}
             </div>
-
-            <button
-              type="submit"
-              className="bg-[#1976d2] text-white font-semibold text-xs px-5 py-2 rounded uppercase tracking-wider"
-            >
+            <button type="submit" className="bg-[#1976d2] text-white font-semibold text-xs px-5 py-2 rounded uppercase tracking-wider">
               SAVE
             </button>
           </form>
         )}
 
-        {/* 5. Draw Management */}
-        {activeTab === 'draws' && (
+        {/* ── DRAW CONTROL ── */}
+        {view === 'draws' && (
           <div className="bg-white border border-gray-200 rounded p-4 space-y-4 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Draw Schedule</h2>
-
-            <div className="space-y-2">
-              {[...(drawsOverview.today || []), ...(drawsOverview.tomorrow || [])].map((d: any) => (
-                <div key={d.id} className="border border-gray-200 rounded p-2.5 flex items-center justify-between text-xs">
-                  <div>
-                    <strong className="text-black font-semibold mr-2">{d.game_code}</strong>
-                    <span className="text-gray-500 mr-2">{d.draw_date}</span>
-                    <span className="text-gray-400 font-mono">({d.close_time})</span>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Draw Control</h2>
+              <button onClick={fetchDraws} className="p-1.5 text-gray-500 hover:text-black">
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {(['KL', 'DR1', 'DR6', 'DR8'] as const).map((game) => {
+                const draw = [...(drawsOverview.today || []), ...(drawsOverview.tomorrow || [])].find((d: any) => d.game_code === game);
+                const isOpen = draw?.status === 'OPEN';
+                return (
+                  <div key={game} className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-gray-800">{game}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isOpen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {draw ? (isOpen ? 'OPEN' : 'CLOSED') : 'N/A'}
+                      </span>
+                    </div>
+                    {draw && (
+                      <div className="text-[10px] text-gray-500 font-mono">{draw.draw_date} · {draw.close_time}</div>
+                    )}
+                    {draw && (
+                      <button
+                        onClick={() => handleToggleDrawStatus(draw.id, draw.status)}
+                        className={`w-full py-1.5 rounded text-[11px] font-bold uppercase tracking-wide ${
+                          isOpen
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        {isOpen ? 'Close Draw' : 'Open Draw'}
+                      </button>
+                    )}
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      d.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {d.status}
-                    </span>
-
-                    <button
-                      onClick={() => handleToggleDrawStatus(d.id, d.status)}
-                      className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded text-[10px] font-bold uppercase"
-                    >
-                      {d.status === 'OPEN' ? 'Close' : 'Open'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
+
+        {/* ── SET DC FOR AGENT ── */}
+        {view === 'set_dc_agent' && (
+          <div className="bg-white border border-gray-200 rounded p-4 space-y-4 shadow-sm">
+            <h2 className="text-sm font-bold text-gray-700 uppercase">Set DC — Agent</h2>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Select Agent</label>
+              <select
+                value={dcAgentSelected}
+                onChange={(e) => handleDcAgentUserChange(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+              >
+                <option value="">Please select</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.username}</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedDcAgent && (
+              <div className="bg-blue-50 rounded p-2 text-[10px] text-blue-700">
+                Current DC (SUPER): ₹{selectedDcAgent.winning_commission_dc ?? 0}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Game</label>
+              <select
+                value={dcAgentGame}
+                onChange={(e) => setDcAgentGame(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+              >
+                <option value="KL">KL</option>
+                <option value="DR1">DR 1</option>
+                <option value="DR6">DR 6</option>
+                <option value="DR8">DR 8</option>
+              </select>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-semibold text-gray-700 mb-2">Set DC Values</h3>
+              <table className="w-full text-center border border-gray-300 text-[10px] border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-300 text-gray-700">
+                    <th className="py-1 px-1 border-r border-gray-300 text-left pl-2">Result Type</th>
+                    <th className="py-1 px-1 border-r border-gray-300">Category</th>
+                    <th className="py-1 px-1">DC (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dcAgentTable.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-200">
+                      <td className="py-1 px-1 border-r border-gray-200 text-left pl-2">{row.resultType}</td>
+                      <td className="py-1 px-1 border-r border-gray-200">{row.category}</td>
+                      <td className="py-1 px-1">
+                        <input
+                          type="number" step="0.01" value={row.dc}
+                          onChange={(e) => {
+                            const updated = [...dcAgentTable];
+                            updated[idx] = { ...updated[idx], dc: e.target.value };
+                            setDcAgentTable(updated);
+                          }}
+                          className="w-16 text-center border border-gray-200 rounded py-0.5"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[9px] text-gray-400 mt-1">* First Price SUPER DC is saved as the main DC for this agent</p>
+            </div>
+
+            <button
+              onClick={handleSaveDcAgent}
+              className="bg-[#1976d2] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2 rounded uppercase tracking-wider"
+            >
+              SAVE DC
+            </button>
+          </div>
+        )}
+
+        {/* ── SET TICKET PRICE FOR AGENT ── */}
+        {view === 'set_ticket_agent' && (
+          <div className="bg-white border border-gray-200 rounded p-4 space-y-4 shadow-sm">
+            <h2 className="text-sm font-bold text-gray-700 uppercase">Set Ticket Price — Agent</h2>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Select Agent</label>
+              <select
+                value={tpAgentSelected}
+                onChange={(e) => handleTpAgentUserChange(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+              >
+                <option value="">Please select</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.username}</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedTpAgent && selectedTpAgent.custom_prices && (
+              <div className="bg-blue-50 rounded p-2 text-[10px] text-blue-700">
+                Current: 3-digit ₹{selectedTpAgent.custom_prices.three_digit?.d} | 2-digit ₹{selectedTpAgent.custom_prices.two_digit?.d} | 1-digit ₹{selectedTpAgent.custom_prices.one_digit?.d}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Game</label>
+              <select
+                value={tpAgentGame}
+                onChange={(e) => setTpAgentGame(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+              >
+                <option value="KL">KL</option>
+                <option value="DR1">DR 1</option>
+                <option value="DR6">DR 6</option>
+                <option value="DR8">DR 8</option>
+              </select>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">1 Digit (A/B/C) D-Price (₹)</label>
+                <input type="number" step="0.01" value={tpSingle}
+                  onChange={(e) => setTpSingle(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">2 Digit (AB/BC/AC) D-Price (₹)</label>
+                <input type="number" step="0.01" value={tpDouble}
+                  onChange={(e) => setTpDouble(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">3 Digit (SUPER/BOX) D-Price (₹)</label>
+                <input type="number" step="0.01" value={tpTriple}
+                  onChange={(e) => setTpTriple(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black" />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveTpAgent}
+              className="bg-[#1976d2] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2 rounded uppercase tracking-wider"
+            >
+              SAVE PRICES
+            </button>
+          </div>
+        )}
+
+        {/* ── WINNING REPORT ── */}
+        {view === 'winning_report' && (
+          <div className="space-y-4">
+            <div className="bg-white border border-gray-200 rounded p-4 space-y-3 shadow-sm">
+              <h2 className="text-sm font-bold text-gray-700 uppercase">Winning Report</h2>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Date</label>
+                  <input
+                    type="date" value={wrDate}
+                    onChange={(e) => setWrDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Game (optional)</label>
+                  <select
+                    value={wrGame}
+                    onChange={(e) => setWrGame(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+                  >
+                    <option value="">All Games</option>
+                    <option value="KL">KL</option>
+                    <option value="DR1">DR 1</option>
+                    <option value="DR6">DR 6</option>
+                    <option value="DR8">DR 8</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Agent (optional)</label>
+                <select
+                  value={wrAgentId}
+                  onChange={(e) => setWrAgentId(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-black"
+                >
+                  <option value="">All Agents</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>{a.username}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={handleLoadWinningReport}
+                disabled={wrLoading}
+                className="bg-[#ff0000] hover:bg-red-700 disabled:opacity-60 text-white font-semibold text-xs px-5 py-2 rounded uppercase tracking-wider"
+              >
+                {wrLoading ? 'Loading...' : 'Load Report'}
+              </button>
+            </div>
+
+            {wrRecords.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded shadow-sm overflow-x-auto">
+                <table className="w-full text-center border-collapse text-[11px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-[10px]">
+                      <th className="py-2 px-2 text-left">Bill#</th>
+                      <th className="py-2 px-2">Game</th>
+                      <th className="py-2 px-2">Number</th>
+                      <th className="py-2 px-2">Category</th>
+                      <th className="py-2 px-2">Prize (₹)</th>
+                      <th className="py-2 px-2">DC (₹)</th>
+                      <th className="py-2 px-2">Total (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wrRecords.map((r: any, i: number) => {
+                      const prize = Number(r.prize_amount || 0);
+                      const dc = Number(r.dealer_commission || 0);
+                      return (
+                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-1.5 px-2 text-left font-mono text-gray-700">{r.bill_number || r.bill_id || '—'}</td>
+                          <td className="py-1.5 px-2">{r.game_code || '—'}</td>
+                          <td className="py-1.5 px-2 font-mono font-bold">{r.matched_number || '—'}</td>
+                          <td className="py-1.5 px-2 text-[10px]">{r.winning_category || r.lsk_category || '—'}</td>
+                          <td className="py-1.5 px-2 font-mono text-green-700 font-bold">₹{prize}</td>
+                          <td className="py-1.5 px-2 font-mono text-blue-700">₹{dc}</td>
+                          <td className="py-1.5 px-2 font-mono font-bold text-gray-900">₹{prize + dc}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50 border-t border-gray-300 font-bold text-xs">
+                      <td colSpan={4} className="py-2 px-2 text-left text-gray-600">TOTAL</td>
+                      <td className="py-2 px-2 font-mono text-green-700">
+                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.prize_amount || 0), 0)}
+                      </td>
+                      <td className="py-2 px-2 font-mono text-blue-700">
+                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.dealer_commission || 0), 0)}
+                      </td>
+                      <td className="py-2 px-2 font-mono text-gray-900">
+                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.prize_amount || 0) + Number(r.dealer_commission || 0), 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            {!wrLoading && wrRecords.length === 0 && (
+              <div className="bg-white border border-gray-200 rounded p-6 text-center text-xs text-gray-400 shadow-sm">
+                No winning records found. Click Load Report to fetch data.
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
       {/* Modal: Create Agent */}
@@ -722,35 +1001,20 @@ export const AdminPortal: React.FC = () => {
             <form onSubmit={handleCreateAgent} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-500 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={newAgentUser}
-                  onChange={(e) => setNewAgentUser(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
+                <input type="text" value={newAgentUser} onChange={(e) => setNewAgentUser(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5" />
               </div>
               <div>
                 <label className="block text-gray-500 mb-1">Password</label>
-                <input
-                  type="password"
-                  value={newAgentPass}
-                  onChange={(e) => setNewAgentPass(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
+                <input type="password" value={newAgentPass} onChange={(e) => setNewAgentPass(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5" />
               </div>
               <div>
-                <label className="block text-gray-500 mb-1">Commission (₹)</label>
-                <input
-                  type="text"
-                  value={newAgentComm}
-                  onChange={(e) => setNewAgentComm(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
+                <label className="block text-gray-500 mb-1">Commission (₹ per ticket)</label>
+                <input type="text" value={newAgentComm} onChange={(e) => setNewAgentComm(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5" />
               </div>
-              <button
-                type="submit"
-                className="w-full py-2 bg-[#ff0000] text-white font-bold uppercase rounded mt-2"
-              >
+              <button type="submit" className="w-full py-2 bg-[#ff0000] text-white font-bold uppercase rounded mt-2">
                 SAVE
               </button>
             </form>
@@ -758,12 +1022,12 @@ export const AdminPortal: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Edit Agent */}
+      {/* Modal: Edit Agent Commission */}
       {editAgentModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded p-5 max-w-xs w-full shadow-lg">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-gray-800 uppercase">Edit Agent</h3>
+              <h3 className="text-sm font-bold text-gray-800 uppercase">Edit Commission</h3>
               <button onClick={() => setEditAgentModal(null)} className="text-gray-400 hover:text-black">
                 <X className="w-4 h-4" />
               </button>
@@ -771,57 +1035,12 @@ export const AdminPortal: React.FC = () => {
             <p className="text-xs text-gray-500 mb-3">Agent: <strong>{editAgentModal.username}</strong></p>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-gray-500 mb-1">Commission (₹)</label>
-                <input
-                  type="text"
-                  value={editComm}
-                  onChange={(e) => setEditComm(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-500 mb-1">DC (Winning Commission %)</label>
-                <input
-                  type="text"
-                  value={editDC}
-                  onChange={(e) => setEditDC(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
-              </div>
-              <div className="border-t pt-2">
-                <p className="text-[10px] text-gray-500 uppercase font-semibold mb-2">Ticket D-Price (Wholesale)</p>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-gray-400 mb-0.5">3 Digit (SUPER/BOX) D-Price</label>
-                    <input
-                      type="text"
-                      value={editTriplePrice}
-                      onChange={(e) => setEditTriplePrice(e.target.value)}
-                      className="w-full border border-gray-300 rounded p-1.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 mb-0.5">2 Digit (AB/BC/AC) D-Price</label>
-                    <input
-                      type="text"
-                      value={editDoublePrice}
-                      onChange={(e) => setEditDoublePrice(e.target.value)}
-                      className="w-full border border-gray-300 rounded p-1.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 mb-0.5">1 Digit (A/B/C) D-Price</label>
-                    <input
-                      type="text"
-                      value={editSinglePrice}
-                      onChange={(e) => setEditSinglePrice(e.target.value)}
-                      className="w-full border border-gray-300 rounded p-1.5"
-                    />
-                  </div>
-                </div>
+                <label className="block text-gray-500 mb-1">Commission (₹ per ticket)</label>
+                <input type="text" value={editComm} onChange={(e) => setEditComm(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5" />
               </div>
               <button
-                onClick={handleSaveEditAgent}
+                onClick={handleSaveEditAgentComm}
                 className="w-full py-2 bg-[#ff0000] text-white font-bold uppercase rounded mt-2"
               >
                 SAVE
@@ -845,17 +1064,10 @@ export const AdminPortal: React.FC = () => {
               <p className="text-gray-600">User: <strong>{resetModalUser.username}</strong></p>
               <div>
                 <label className="block text-gray-500 mb-1">New Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded p-1.5"
-                />
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5" />
               </div>
-              <button
-                type="submit"
-                className="w-full py-2 bg-[#ff0000] text-white font-bold uppercase rounded mt-2"
-              >
+              <button type="submit" className="w-full py-2 bg-[#ff0000] text-white font-bold uppercase rounded mt-2">
                 SAVE
               </button>
             </form>
