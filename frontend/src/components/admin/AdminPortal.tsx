@@ -43,7 +43,8 @@ export const AdminPortal: React.FC = () => {
     totalAgents: 0,
     totalSubDealers: 0,
     todaySale: 0,
-    todayWinning: 0
+    todayWinning: 0,
+    todayDC: 0
   });
 
   // Agents & Sub-dealers
@@ -120,7 +121,7 @@ export const AdminPortal: React.FC = () => {
   const fetchDashboardData = useCallback(async () => {
     try {
       const data = await ApiClient.getAdminDashboard();
-      setMetrics(data);
+      setMetrics({ ...data, todayDC: (data as any).todayDC ?? 0 });
     } catch {}
   }, []);
 
@@ -433,7 +434,7 @@ export const AdminPortal: React.FC = () => {
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
                 <span className="text-[10px] text-gray-500 uppercase block font-semibold">Agents</span>
                 <strong className="text-2xl font-mono text-black">{metrics.totalAgents}</strong>
@@ -443,12 +444,16 @@ export const AdminPortal: React.FC = () => {
                 <strong className="text-2xl font-mono text-black">{metrics.totalSubDealers}</strong>
               </div>
               <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
-                <span className="text-[10px] text-gray-500 uppercase block font-semibold">Today Sale</span>
+                <span className="text-[10px] text-gray-500 uppercase block font-semibold">Today Sale (D)</span>
                 <strong className="text-2xl font-mono text-green-600">₹{metrics.todaySale}</strong>
               </div>
               <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
                 <span className="text-[10px] text-gray-500 uppercase block font-semibold">Today Winning</span>
                 <strong className="text-2xl font-mono text-red-600">₹{metrics.todayWinning}</strong>
+              </div>
+              <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
+                <span className="text-[10px] text-gray-500 uppercase block font-semibold">Today DC</span>
+                <strong className="text-2xl font-mono text-blue-600">₹{metrics.todayDC}</strong>
               </div>
             </div>
           </div>
@@ -935,6 +940,7 @@ export const AdminPortal: React.FC = () => {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-[10px]">
                       <th className="py-2 px-2 text-left">Bill#</th>
+                      <th className="py-2 px-2">Agent</th>
                       <th className="py-2 px-2">Game</th>
                       <th className="py-2 px-2">Number</th>
                       <th className="py-2 px-2">Category</th>
@@ -945,14 +951,15 @@ export const AdminPortal: React.FC = () => {
                   </thead>
                   <tbody>
                     {wrRecords.map((r: any, i: number) => {
-                      const prize = Number(r.prize_amount || 0);
-                      const dc = Number(r.dealer_commission || 0);
+                      const prize = Number(r.winning_prize_amount ?? r.prize_amount ?? 0);
+                      const dc = Number(r.dc ?? r.dealer_commission ?? 0);
                       return (
                         <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-1.5 px-2 text-left font-mono text-gray-700">{r.bill_number || r.bill_id || '—'}</td>
-                          <td className="py-1.5 px-2">{r.game_code || '—'}</td>
-                          <td className="py-1.5 px-2 font-mono font-bold">{r.matched_number || '—'}</td>
-                          <td className="py-1.5 px-2 text-[10px]">{r.winning_category || r.lsk_category || '—'}</td>
+                          <td className="py-1.5 px-2 text-left font-mono text-gray-700">{r.bill_number || '—'}</td>
+                          <td className="py-1.5 px-2 text-blue-700 font-medium">{r.agent_username || r.dealer || '—'}</td>
+                          <td className="py-1.5 px-2">{r.game || r.game_code || '—'}</td>
+                          <td className="py-1.5 px-2 font-mono font-bold">{r.winning_number || r.matched_number || '—'}</td>
+                          <td className="py-1.5 px-2 text-[10px]">{r.lsk_category || '—'}</td>
                           <td className="py-1.5 px-2 font-mono text-green-700 font-bold">₹{prize}</td>
                           <td className="py-1.5 px-2 font-mono text-blue-700">₹{dc}</td>
                           <td className="py-1.5 px-2 font-mono font-bold text-gray-900">₹{prize + dc}</td>
@@ -962,15 +969,15 @@ export const AdminPortal: React.FC = () => {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-50 border-t border-gray-300 font-bold text-xs">
-                      <td colSpan={4} className="py-2 px-2 text-left text-gray-600">TOTAL</td>
+                      <td colSpan={5} className="py-2 px-2 text-left text-gray-600">TOTAL</td>
                       <td className="py-2 px-2 font-mono text-green-700">
-                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.prize_amount || 0), 0)}
+                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.winning_prize_amount ?? r.prize_amount ?? 0), 0)}
                       </td>
                       <td className="py-2 px-2 font-mono text-blue-700">
-                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.dealer_commission || 0), 0)}
+                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.dc ?? r.dealer_commission ?? 0), 0)}
                       </td>
                       <td className="py-2 px-2 font-mono text-gray-900">
-                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.prize_amount || 0) + Number(r.dealer_commission || 0), 0)}
+                        ₹{wrRecords.reduce((s: number, r: any) => s + Number(r.winning_prize_amount ?? r.prize_amount ?? 0) + Number(r.dc ?? r.dealer_commission ?? 0), 0)}
                       </td>
                     </tr>
                   </tfoot>

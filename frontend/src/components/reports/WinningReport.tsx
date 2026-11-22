@@ -187,10 +187,12 @@ export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
             <table className="w-full text-center border-collapse text-[10px]">
               <thead>
                 <tr className="bg-[#e4e6ea] text-gray-700 font-bold border-b border-gray-300 text-[9px]">
-                  <th className="py-1.5 px-1 font-semibold text-left pl-3">DATE</th>
+                  <th className="py-1.5 px-1 font-semibold">DATE</th>
                   <th className="py-1.5 px-1 font-semibold">GAME</th>
                   <th className="py-1.5 px-1 font-semibold">NUMBER</th>
-                  <th className="py-1.5 px-1 font-semibold">DEALER</th>
+                  <th className="py-1.5 px-1 font-semibold">
+                    {user?.role === 'SUBDEALER' ? 'CUSTOMER' : user?.role === 'AGENT' ? 'SUB DEALER' : 'AGENT'}
+                  </th>
                   <th className="py-1.5 px-1 font-semibold">PRICE</th>
                   <th className="py-1.5 px-1 font-semibold">AMOUNT</th>
                 </tr>
@@ -214,7 +216,13 @@ export const WinningReport: React.FC<WinningReportProps> = ({ onBack }) => {
                         </td>
                         <td className="py-1.5 px-1 font-semibold">{rec.game || rec.game_code}</td>
                         <td className="py-1.5 px-1 font-mono font-bold">{rec.winning_number}</td>
-                        <td className="py-1.5 px-1">{rec.customer_name || 'Retail'}</td>
+                        <td className="py-1.5 px-1">
+                          {user?.role === 'SUBDEALER'
+                            ? (rec.customer_name || 'Retail')
+                            : user?.role === 'AGENT'
+                              ? (rec.dealer || rec.username || '—')
+                              : (rec.agent_username || rec.dealer || '—')}
+                        </td>
                         <td className="py-1.5 px-1 font-mono">{rec.lsk_category || rec.prize_name || 'SUPER'}</td>
                         <td className="py-1.5 px-1 font-mono text-right pr-2">
                           <div className="font-bold text-gray-900">₹ {prize}</div>

@@ -41,21 +41,24 @@ export class UserService {
     totalSubDealers: number;
     todaySale: number;
     todayWinning: number;
+    todayDC: number;
   }> {
     const today = getISTDateString();
 
-    const [agentRes, subDealerRes, saleRes, winRes] = await Promise.all([
+    const [agentRes, subDealerRes, saleRes, winRes, dcRes] = await Promise.all([
       db.query(`SELECT COUNT(*) AS cnt FROM users WHERE role = 'AGENT' AND is_deleted = false`),
       db.query(`SELECT COUNT(*) AS cnt FROM users WHERE role = 'SUBDEALER' AND is_deleted = false`),
-      db.query(`SELECT COALESCE(SUM(total_c_amount), 0) AS total_sale FROM bills WHERE draw_date = $1 AND status = 'ACTIVE'`, [today]),
-      db.query(`SELECT COALESCE(SUM(wr.prize_amount), 0) AS total_win FROM winning_records wr JOIN bills b ON wr.bill_id = b.id WHERE b.draw_date = $1 AND b.status = 'ACTIVE'`, [today])
+      db.query(`SELECT COALESCE(SUM(total_d_amount), 0) AS total_sale FROM bills WHERE draw_date = $1 AND status = 'ACTIVE'`, [today]),
+      db.query(`SELECT COALESCE(SUM(wr.prize_amount), 0) AS total_win FROM winning_records wr JOIN bills b ON wr.bill_id = b.id WHERE b.draw_date = $1 AND b.status = 'ACTIVE'`, [today]),
+      db.query(`SELECT COALESCE(SUM(wr.dealer_commission), 0) AS total_dc FROM winning_records wr JOIN bills b ON wr.bill_id = b.id WHERE b.draw_date = $1 AND b.status = 'ACTIVE'`, [today])
     ]);
 
     return {
       totalAgents: Number(agentRes.rows[0].cnt),
       totalSubDealers: Number(subDealerRes.rows[0].cnt),
       todaySale: Number(saleRes.rows[0].total_sale),
-      todayWinning: Number(winRes.rows[0].total_win)
+      todayWinning: Number(winRes.rows[0].total_win),
+      todayDC: Number(dcRes.rows[0].total_dc)
     };
   }
 

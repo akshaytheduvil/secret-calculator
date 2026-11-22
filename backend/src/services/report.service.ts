@@ -184,6 +184,7 @@ export class ReportService {
              b.customer_name, wr.matched_number AS winning_number,
              bi.lsk_category, wr.match_count AS count,
              COALESCE(u.username, b.username_snapshot) AS dealer,
+             COALESCE(agent.username, '') AS agent_username,
              b.bill_number,
              wr.prize_amount AS winning_prize_amount,
              wr.dealer_commission AS dc
@@ -191,6 +192,7 @@ export class ReportService {
       JOIN bills b ON wr.bill_id = b.id
       JOIN bill_items bi ON wr.bill_item_id = bi.id
       LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN users agent ON u.parent_id = agent.id
       ${whereClause}
       ORDER BY b.draw_date DESC, wr.calculated_at DESC
     `;
